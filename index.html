@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>AiLGNS 算力参与</title>
+<style>
+:root{--navy:#102040;--navy2:#1e315c;--gold:#c9a64a;--gold2:#f0d98c;--ink:#2a2e38;--gray:#707682;--bg:#f5f7fb;--ok:#1f9d55;--err:#c0392b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);padding-bottom:90px}
+header{background:linear-gradient(160deg,var(--navy),var(--navy2));color:#fff;padding:18px 16px 22px;border-bottom:3px solid var(--gold)}
+header h1{margin:0;font-size:20px;letter-spacing:.5px}
+header .sub{margin-top:6px;font-size:12.5px;color:#c9d2e4}
+.wrap{padding:14px}
+.card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px rgba(16,32,64,.06)}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--navy);display:flex;align-items:center;gap:6px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13.5px;border-bottom:1px dashed #eceff5}
+.row:last-child{border-bottom:none}
+.row .k{color:var(--gray)}
+.row .v{font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums}
+button{font-family:inherit;font-size:15px;border:none;border-radius:12px;padding:14px;width:100%;font-weight:700;cursor:pointer}
+.btn-primary{background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1c1503;box-shadow:0 6px 18px rgba(201,166,74,.35)}
+.btn-dark{background:var(--navy);color:#fff}
+.btn-ghost{background:#fff;color:var(--navy);border:1.5px solid #d8dce3}
+button:disabled{opacity:.5}
+.amount{display:flex;align-items:center;gap:10px;margin:6px 0 12px}
+.amount input{flex:1;font-size:26px;font-weight:800;color:var(--navy);border:none;border-bottom:2px solid var(--gold);padding:8px 4px;outline:none;background:transparent;text-align:center;font-family:inherit}
+.amount .unit{font-size:15px;color:var(--gray);font-weight:700}
+.quick{display:flex;gap:8px;margin-bottom:12px}
+.quick button{padding:10px;font-size:13.5px;background:#f1f3f7;color:var(--navy);border:1px solid #e2e6ee}
+.badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:700}
+.b-ok{background:#e6f7ee;color:var(--ok)}
+.b-err{background:#fdecea;color:var(--err)}
+.b-wait{background:#fff7e6;color:#b7791f}
+#log{font-size:12px;color:var(--gray);line-height:1.7;max-height:150px;overflow-y:auto;word-break:break-all}
+.tip{font-size:12px;color:var(--gray);line-height:1.65;background:#fff;border-radius:12px;padding:12px;border-left:3px solid var(--gold)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;padding:12px 14px 16px;box-shadow:0 -3px 14px rgba(16,32,64,.08)}
+.warn{background:#fff7e6;border:1px solid #ffe0a3;color:#8a6100;font-size:12.5px;padding:10px;border-radius:10px;margin-bottom:10px;line-height:1.6}
+.sw{display:flex;align-items:center;justify-content:space-between;font-size:13.5px;padding:6px 0}
+.sw input{width:44px;height:24px}
+</style>
+</head>
+<body>
+<header>
+  <h1>AiLGNS 算力参与</h1>
+  <div class="sub">Anubis Chain · PowerLedger · 每日额度有限</div>
+</header>
+
+<div class="wrap">
+  <div class="warn" id="envWarn" style="display:none">
+    ⚠️ 没检测到钱包。请复制本页链接，到 <b>MetaMask / OKX / TokenPocket</b> 的「内置浏览器」里打开。
+  </div>
+
+  <div class="card">
+    <h2>① 连接钱包</h2>
+    <div class="row"><span class="k">钱包地址</span><span class="v" id="addr">未连接</span></div>
+    <div class="row"><span class="k">网络</span><span class="v" id="net">—</span></div>
+    <div class="row"><span class="k">DAI 余额</span><span class="v" id="bal">—</span></div>
+    <div class="row"><span class="k">已授权额度</span><span class="v" id="allow">—</span></div>
+    <div style="margin-top:10px"><button class="btn-dark" id="btnConnect">连接钱包 / 切换网络</button></div>
+  </div>
+
+  <div class="card" style="text-align:center">
+    <h2 style="justify-content:center">⏳ 距下次额度重置</h2>
+    <div id="cd" style="font-size:30px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums">--:--:--</div>
+    <div style="font-size:12px;color:#707682;margin-top:6px">每日北京时间 00:00 重置（先到先得）</div>
+  </div>
+
+  <div class="card">
+    <h2>② 输入金额 <span id="capBadge" class="badge b-wait">检查中…</span></h2>
+    <div class="amount">
+      <input id="amt" type="number" inputmode="decimal" value="100">
+      <span class="unit">DAI</span>
+    </div>
+    <div class="quick">
+      <button data-v="100">100</button>
+      <button data-v="500">500</button>
+      <button data-v="1000">1000</button>
+      <button data-v="max">全部</button>
+    </div>
+    <div class="sw">
+      <span>额度开放时自动抢（自动重试）</span>
+      <input type="checkbox" id="auto">
+    </div>
+    <div style="font-size:12px;color:#707682;margin-top:4px" id="capInfo">正在读取今日额度状态…</div>
+  </div>
+
+  <div class="card">
+    <h2>③ 执行</h2>
+    <button class="btn-ghost" id="btnApprove" style="margin-bottom:10px">授权 DAI（首次需要，一次性）</button>
+    <button class="btn-primary" id="btnGo">立即参与</button>
+    <div id="log" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <button class="btn-ghost" id="btnCopy">📋 复制本页链接，发给同学</button>
+  </div>
+
+  <div class="tip" style="border-left-color:#c0392b">
+    <b>风险提示：</b>本页面仅为链上操作辅助工具，不构成任何投资建议。加密资产波动极大，链上交易不可撤销，请自行判断、自担风险。
+  </div>
+
+  <div class="tip">
+    <b>怎么用：</b><br>
+    1. 用手机钱包 App（MetaMask / OKX / TokenPocket）的「浏览器」打开本页<br>
+    2. 点「连接钱包」→ 自动添加 Anubis 网络<br>
+    3. 先点「授权 DAI」（只需一次），再点「立即参与」<br>
+    4. 额度满时不用守着：打开「自动抢」，页面每分钟检测，一开就自动弹钱包确认<br><br>
+    <b>参与合约：</b>0x9E68F61E…68C1b（PowerLedger）<br>
+    <b>说明：</b>每日额度按北京时间 00:00 重置，额度有限、先到先得。
+  </div>
+</div>
+
+<div class="bar"><button class="btn-primary" id="btnGo2">立即参与</button></div>
+
+<script>
+const CFG = {
+  chainId: 6714,
+  chainIdHex: '0x1a3a',
+  rpc: 'https://rpc.anubispace.org',
+  explorer: 'https://browser.anubispace.org',
+  dai: '0x83fd06F0846d9D90B3016bF670Efe2E0B11cDe14',
+  ledger: '0x9E68F61E2615cc1D2C4a2D0026bFc1EBFdf68C1b',
+  selBalance: '0x70a08231',
+  selAllowance: '0xdd62ed3e',
+  selApprove: '0x095ea7b3',
+  selParticipate: '0x845c9306',
+  maxUint: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+};
+const $ = id => document.getElementById(id);
+let account = null;
+const log = m => { const d = new Date().toLocaleTimeString('zh-CN'); $('log').innerHTML = '[' + d + '] ' + m + '<br>' + $('log').innerHTML; };
+const pad = a => a.toLowerCase().replace('0x','').padStart(64,'0');
+const hexAmt = v => BigInt(Math.round(v * 1e18)).toString(16).padStart(64, '0');
+const fmt = v => (Number(BigInt(v)) / 1e18).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+async function rpcCall(to, data, from) {
+  const p = { to, data };
+  if (from) p.from = from;
+  const r = await fetch(CFG.rpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'eth_call', params: [p, 'latest'] }) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error.message || 'call failed');
+  return j.result;
+}
+async function ensureChain() {
+  const eth = window.ethereum; if (!eth) throw new Error('未检测到钱包');
+  try {
+    await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: CFG.chainIdHex }] });
+  } catch (e) {
+    if (e && (e.code === 4902 || /Unrecognized chain/i.test(e.message || ''))) {
+      await eth.request({ method: 'wallet_addEthereumChain', params: [{
+        chainId: CFG.chainIdHex, chainName: 'Anubis Chain',
+        nativeCurrency: { name: 'Dai Stablecoin', symbol: 'DAI', decimals: 18 },
+        rpcUrls: [CFG.rpc], blockExplorerUrls: [CFG.explorer]
+      }] });
+    } else throw e;
+  }
+}
+async function connect() {
+  const eth = window.ethereum;
+  if (!eth) { $('envWarn').style.display = 'block'; return; }
+  try {
+    const accs = await eth.request({ method: 'eth_requestAccounts' });
+    account = accs[0];
+    $('addr').textContent = account.slice(0,6) + '…' + account.slice(-4);
+    await ensureChain();
+    const cid = await eth.request({ method: 'eth_chainId' });
+    $('net').textContent = parseInt(cid,16) === CFG.chainId ? 'Anubis (6714) ✅' : '错误网络 ' + parseInt(cid,16);
+    log('钱包已连接：' + account);
+    await refresh();
+  } catch (e) { log('❌ ' + (e.message || e)); }
+}
+async function refresh() {
+  if (!account) return;
+  try {
+    const b = await rpcCall(CFG.dai, CFG.selBalance + pad(account));
+    $('bal').textContent = fmt(b) + ' DAI';
+    const a = await rpcCall(CFG.dai, CFG.selAllowance + pad(account) + pad(CFG.ledger));
+    const av = BigInt(a);
+    $('allow').textContent = av > (1n<<200n) ? '无限 ✅' : fmt(av) + ' DAI';
+  } catch (e) {}
+  checkCap();
+}
+let capOpen = false;
+async function checkCap() {
+  const amt = parseFloat($('amt').value || '100');
+  const data = CFG.selParticipate + hexAmt(amt > 0 ? amt : 100);
+  try {
+    await rpcCall(CFG.ledger, data, account || undefined);
+    capOpen = true;
+    $('capBadge').className = 'badge b-ok'; $('capBadge').textContent = '可参与';
+    $('capInfo').textContent = '✅ 当前额度开放，可以立即参与';
+    if ($('auto').checked && account) { log('⚡ 检测到额度开放，自动发起参与…'); await participate(); }
+  } catch (e) {
+    capOpen = false;
+    const m = String(e.message || '');
+    if (/daily DAI deposit cap/i.test(m)) {
+      $('capBadge').className = 'badge b-err'; $('capBadge').textContent = '今日已满';
+      $('capInfo').textContent = '⏳ 今日额度已满，将在北京时间 00:00 重置（开着本页会自动等待）';
+    } else {
+      $('capBadge').className = 'badge b-wait'; $('capBadge').textContent = '待检查';
+      $('capInfo').textContent = 'ℹ️ ' + m.slice(0, 80);
+    }
+  }
+}
+async function approve() {
+  if (!account) return connect();
+  try {
+    $('btnApprove').textContent = '授权中…';
+    const tx = await window.ethereum.request({ method: 'eth_sendTransaction', params: [{ from: account, to: CFG.dai, data: CFG.selApprove + pad(CFG.ledger) + CFG.maxUint.slice(2) }] });
+    log('授权已提交：' + tx.slice(0,18) + '…');
+    await waitTx(tx); await refresh();
+  } catch (e) { log('❌ 授权失败：' + (e.message || e)); }
+  $('btnApprove').textContent = '授权 DAI（首次需要，一次性）';
+}
+async function participate() {
+  if (!account) return connect();
+  const amt = parseFloat($('amt').value);
+  if (!(amt > 0)) { log('❌ 请输入金额'); return; }
+  try {
+    const a = BigInt(await rpcCall(CFG.dai, CFG.selAllowance + pad(account) + pad(CFG.ledger)));
+    if (a < BigInt(Math.round(amt*1e18))) { log('⚠️ 额度不足，先点「授权 DAI」'); return; }
+    $('btnGo').textContent = '等待钱包确认…';
+    const tx = await window.ethereum.request({ method: 'eth_sendTransaction', params: [{ from: account, to: CFG.ledger, data: CFG.selParticipate + hexAmt(amt) }] });
+    log('✅ 已提交：' + tx.slice(0,18) + '…');
+    const ok = await waitTx(tx);
+    log(ok ? '🎉 参与成功！' : '❌ 交易失败（可能额度被抢完）');
+    $('btnGo').textContent = ok ? '已成功 ✅' : '立即参与';
+    await refresh();
+  } catch (e) { log('❌ ' + (e.message || e)); $('btnGo').textContent = '立即参与'; }
+}
+async function waitTx(hash) {
+  for (let i = 0; i < 90; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const r = await fetch(CFG.rpc, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'eth_getTransactionReceipt', params:[hash] }) });
+      const j = await r.json();
+      if (j.result) return j.result.status === '0x1';
+    } catch (e) {}
+  }
+  log('⏳ 等待超时，请到浏览器查看');
+  return false;
+}
+$('btnConnect').onclick = connect;
+$('btnApprove').onclick = approve;
+$('btnGo').onclick = participate;
+$('btnGo2').onclick = participate;
+document.querySelectorAll('.quick button').forEach(b => b.onclick = async () => {
+  const v = b.dataset.v;
+  if (v === 'max') { try { const bal = await rpcCall(CFG.dai, CFG.selBalance + pad(account)); $('amt').value = Math.floor(Number(BigInt(bal))/1e18*100)/100; } catch(e){} }
+  else $('amt').value = v;
+  checkCap();
+});
+$('amt').onchange = checkCap;
+setInterval(() => { if (account) refresh(); }, 60000);
+function nextResetMs() {
+  const now = Date.now(); const d = new Date(now);
+  const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 16, 0, 0, 0);
+  return now < t ? t : t + 86400000;
+}
+setInterval(() => {
+  const left = nextResetMs() - Date.now();
+  const s = Math.max(0, Math.floor(left / 1000));
+  const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  $('cd').textContent = hh + ':' + mm + ':' + ss;
+}, 1000);
+$('btnCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText(location.href); $('btnCopy').textContent = '✅ 已复制，去粘贴给同学'; }
+  catch (e) { prompt('请手动复制本页链接：', location.href); }
+};
+if (!window.ethereum) $('envWarn').style.display = 'block';
+if (window.ethereum) { window.ethereum.request({ method: 'eth_accounts' }).then(a => { if (a && a[0]) connect(); }); }
+</script>
+</body>
+</html>
