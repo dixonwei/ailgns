@@ -64,7 +64,7 @@ button:disabled{opacity:.5}
     <h2 style="justify-content:center">🔍 额度监控中</h2>
     <div id="cd" style="font-size:30px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums">--:--:--</div>
     <div id="monState" style="font-size:12.5px;color:#1f9d55;font-weight:700;margin-top:6px">正在自动检测额度…一有额度立刻提示并抢</div>
-    <div style="font-size:11.5px;color:#9aa3b2;margin-top:4px">距官方开放（13:00）还有</div>
+    <div style="font-size:11.5px;color:#9aa3b2;margin-top:4px">距每日额度重置（0 点）还有</div>
   </div>
 
   <div class="card">
@@ -203,7 +203,7 @@ async function checkCap() {
     const m = String(e.message || '');
     if (/daily DAI deposit cap/i.test(m)) {
       $('capBadge').className = 'badge b-err'; $('capBadge').textContent = '今日已满';
-      $('capInfo').textContent = '⏳ 今日额度已满，将在北京时间 13:00 开放（开着本页会自动等待）';
+      $('capInfo').textContent = '⏳ 今日额度已满，将在北京时间 0 点重置（开着本页会自动等待）';
     } else {
       $('capBadge').className = 'badge b-wait'; $('capBadge').textContent = '待检查';
       $('capInfo').textContent = 'ℹ️ ' + m.slice(0, 80);
@@ -282,7 +282,7 @@ setInterval(async () => {
 }, 1200);
 function nextResetMs() {
   const now = Date.now(); const d = new Date(now);
-  const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 5, 0, 0, 0);
+  const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 16, 0, 0, 0);
   return now < t ? t : t + 86400000;
 }
 setInterval(() => {
