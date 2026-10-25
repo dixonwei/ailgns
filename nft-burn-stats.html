@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LGNS 销毁统计（NFT 工厂）</title>
+<style>
+body{margin:0;padding:14px;background:#f5f7fb;color:#2a2e38;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+h1{font-size:18px;color:#102040;margin:0 0 4px}
+.sub{font-size:12px;color:#707682;margin-bottom:12px}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eef1f6;font-size:14px}
+.row:last-child{border-bottom:0}
+.k{color:#707682}
+.v{font-weight:700}
+.big{font-size:24px;font-weight:800;color:#102040}
+.small{font-size:11.5px;color:#9aa3b2}
+.ok{color:#1f9d55}.err{color:#c0392b}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:6px 4px;border-bottom:1px solid #eef1f6;text-align:left}
+td.n,th.n{text-align:right}
+button{margin-top:10px;padding:10px 16px;border:0;border-radius:10px;background:#102040;color:#fff;font-weight:700}
+a{color:#102040}
+</style>
+</head>
+<body>
+<h1>LGNS 销毁统计</h1>
+<div class="sub">数据源：NFT 工厂 <b>0xB39d8759…bc09D</b> 的 BurnNFTMinted 事件（逐条累加）</div>
+
+<div class="card">
+  <div class="row"><span class="k">进度</span><span class="v" id="prog">准备中…</span></div>
+  <div class="row"><span class="k">已铸造 NFT 数</span><span class="v" id="nft">—</span></div>
+  <div class="row"><span class="k">累计销毁 LGNS</span><span class="v big" id="lgns">—</span></div>
+  <div class="row"><span class="k">累计销毁 AiLGNS</span><span class="v" id="ai">—</span></div>
+  <div class="row"><span class="k">累计销毁价值</span><span class="v" id="dai">—</span></div>
+  <div class="row"><span class="k">平均每个 NFT 烧 LGNS</span><span class="v" id="avg">—</span></div>
+  <button id="retry">重新扫描</button>
+</div>
+
+<div class="card">
+  <div style="font-weight:700;margin-bottom:6px">最近 10 笔</div>
+  <table id="list"><tr><th>#</th><th class="n">LGNS</th><th class="n">额度 DAI</th></tr></table>
+</div>
+
+<div class="card small">
+  工厂：0xB39d8759d59592363395E4c66a3d4E4ACc9bc09D · 事件 BurnNFTMinted（topic0 0xd67ccdfa…）<br>
+  每条 data 第 4 段 = lgnsAmount（LGNS <b>9 位小数</b>，÷1e9）；第 9 段 = 初始额度（÷1e18）<br>
+  <a href="https://browser.anubispace.org/address/0xB39d8759d59592363395E4c66a3d4E4ACc9bc09D" target="_blank">在区块浏览器核对 →</a>
+</div>
+
+<script>
+var API='https://browser.anubispace.org/api';
+var RPC='https://rpc.anubispace.org';
+var FACT='0xB39d8759d59592363395E4c66a3d4E4ACc9bc09D';
+var T0='0xd67ccdfa9242c203ed59f133bb981c49f98478f702b1ea2fb54f54afe4966fb4';
+var START=14922281, CHUNK=100000, GAP=400, head=0;
+var nft=0, lgns=0, ai=0, dai=0, cap=0, last=[], failed=0;
+function $(id){return document.getElementById(id);}
+function fmt(n,d){ if(isNaN(n))return '—'; var s=n.toFixed(d); var p=s.split('.'); p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,','); return p.join('.'); }
+
+function xhr(url, method, body, cb){
+  var x=new XMLHttpRequest(); x.open(method,url,true); x.timeout=30000;
+  if(body) x.setRequestHeader('content-type','application/json');
+  x.onreadystatechange=function(){
+    if(x.readyState!==4) return;
+    if(x.status!==200){ cb(null,'HTTP '+x.status); return; }
+    try{ cb(JSON.parse(x.responseText),null); }catch(e){ cb(null,'parse: '+String(x.responseText).slice(0,60)); }
+  };
+  x.onerror=function(){cb(null,'network');};
+  x.ontimeout=function(){cb(null,'timeout');};
+  x.send(body||null);
+}
+function getLogs(from,to,cb){
+  var u=API+'?module=logs&action=getLogs&fromBlock='+from+'&toBlock='+to+'&address='+FACT+'&topic0='+T0;
+  xhr(u,'GET',null,function(j,e){
+    if(e) return cb(null,e);
+    if(!j || !Array.isArray(j.result)) return cb([],null);
+    cb(j.result,null);
+  });
+}
+function scanChunk(from,to,attempt,done){
+  getLogs(from,to,function(arr,err){
+    if(err){
+      if(attempt<3){ $('prog').textContent='区块 '+from+' 读取失败('+err+')，重试 '+attempt+'/3…'; setTimeout(function(){ scanChunk(from,to,attempt+1,done); }, 1500); return; }
+      failed++; $('prog').textContent='区块 '+from+'~'+to+' 失败（已跳过）'; return done();
+    }
+    arr.forEach(function(x){
+      var w=String(x.data).slice(2).match(/.{1,64}/g)||[]; if(w.length<9) return;
+      var ln=Number(BigInt('0x'+w[3]))/1e9;
+      var an=Number(BigInt('0x'+w[4]))/1e18;
+      var bv=Number(BigInt('0x'+w[7]))/1e18;
+      var cp=Number(BigInt('0x'+w[8]))/1e18;
+      lgns+=ln; ai+=an; dai+=bv; cap+=cp; nft++;
+      last.unshift({n:Number(BigInt(x.topics[2])),l:ln,c:cp});
+      if(last.length>10) last.pop();
+    });
+    render();
+    done();
+  });
+}
+function render(){
+  $('nft').textContent=fmt(nft,0)+' 个';
+  $('lgns').textContent=fmt(lgns,2)+' LGNS';
+  $('ai').textContent=fmt(ai,4)+' AiLGNS';
+  $('dai').textContent=fmt(dai,2)+' DAI';
+  $('avg').textContent=nft?fmt(lgns/nft,2)+' LGNS':'—';
+  var t='<tr><th>#</th><th class="n">LGNS</th><th class="n">额度 DAI</th></tr>';
+  if(!last.length){ t+='<tr><td colspan="3" style="color:#9aa3b2">服务器统计不含明细；点「重新扫描」可现场算</td></tr>'; }
+  last.forEach(function(x){ t+='<tr><td>'+x.n+'</td><td class="n">'+fmt(x.l,2)+'</td><td class="n">'+fmt(x.c,0)+'</td></tr>'; });
+  $('list').innerHTML=t;
+}
+function loop(from){
+  if(from>head){
+    $('prog').innerHTML='<span class="ok">✅ 扫描完成</span>'+(failed?('（有 '+failed+' 段失败，结果偏小）'):'');
+    return;
+  }
+  var to=Math.min(from+CHUNK-1,head);
+  $('prog').textContent='扫描区块 '+from+' ~ '+to;
+  scanChunk(from,to,1,function(){ setTimeout(function(){ loop(to+1); }, GAP); });
+}
+function start(){
+  nft=0;lgns=0;ai=0;dai=0;cap=0;last=[];failed=0;render();
+  $('prog').textContent='读取当前区块…';
+  xhr(RPC,'POST',JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_blockNumber',params:[]}),function(j,e){
+    if(e||!j||!j.result){ $('prog').textContent='读取区块号失败：'+(e||''); return; }
+    head=parseInt(j.result,16);
+    $('prog').textContent='当前区块 '+head+'，开始扫描…';
+    loop(START);
+  });
+}
+function loadPrecomputed(){
+  $('prog').textContent='读取服务器统计…';
+  xhr('burn-stats.json?t='+Date.now(),'GET',null,function(j,e){
+    if(e||!j||j.nft==null){ start(); return; }
+    nft=j.nft; lgns=j.lgnsBurned; ai=j.ailgnsBurned; dai=j.burnValueDai; cap=j.capacityDai; last=[];
+    render();
+    var t=new Date(j.updatedAt).toLocaleString('zh-CN',{hour12:false});
+    $('prog').innerHTML='<span class="ok">✅ 已读取服务器统计</span>（更新于 '+t+'，每 6 小时自动更新；要明细点「重新扫描」）';
+  });
+}
+$('retry').onclick=start;
+loadPrecomputed();
+</script>
+</body>
+</html>
