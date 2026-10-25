@@ -63,7 +63,7 @@ button:disabled{opacity:.5}
     <div class="row"><span class="k">网络</span><span class="v" id="net">—</span></div>
     <div class="row"><span class="k">LGNS 余额</span><span class="v" id="bal">—</span></div>
     <div class="row"><span class="k">已授权给账本</span><span class="v" id="allow">—</span></div>
-    <div class="row"><span class="k">360 天长期质押</span><span class="v" id="stake">—</span></div>
+    <div class="row"><span class="k">质押合计（360+600天）</span><span class="v" id="stake">—</span></div>
     <div class="row"><span class="k">参与资格</span><span class="v" id="elig">—</span></div>
     <div style="margin-top:10px"><button class="btn-dark" id="btnConnect">连接钱包 / 切换网络</button></div>
   </div>
@@ -73,12 +73,16 @@ button:disabled{opacity:.5}
     <div class="row"><span class="k">今日额度上限</span><span class="v" id="qCap">—</span></div>
     <div class="row"><span class="k">今日已用</span><span class="v" id="qUsed">—</span></div>
     <div class="row"><span class="k">今日剩余</span><span class="v" id="qLeft">—</span></div>
+    <div class="row"><span class="k">今日剩余可销毁</span><span class="v" id="qBudget">—</span></div>
+    <div class="row"><span class="k">每日释放上限</span><span class="v" id="qReleaseCap">—</span></div>
+    <div class="row"><span class="k">已排队算力</span><span class="v" id="qQueued">—</span></div>
     <div class="row"><span class="k">每笔上限</span><span class="v" id="qMax">—</span></div>
     <div class="row"><span class="k">算力倍率</span><span class="v" id="qRate">—</span></div>
     <div class="row"><span class="k">当前纪元</span><span class="v" id="qEpoch">—</span></div>
     <div id="qState" style="font-size:12px;color:#707682;margin-top:6px">正在读取…</div>
+    <div class="row"><span class="k">距官方公布开放</span><span class="v" id="openCd" style="font-variant-numeric:tabular-nums">—</span></div>
     <div style="text-align:center;margin-top:10px;font-size:26px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums" id="cd">--:--:--</div>
-    <div style="text-align:center;font-size:11.5px;color:#9aa3b2">距每日额度重置（0 点）</div>
+    <div style="text-align:center;font-size:11.5px;color:#9aa3b2">距每日额度重置（0 点 · 新加坡=北京时间）</div>
   </div>
 
   <div class="card">
@@ -97,7 +101,7 @@ button:disabled{opacity:.5}
       <span>额度开放时自动抢（自动重试）</span>
       <input type="checkbox" id="auto" checked>
     </div>
-    <div style="font-size:12px;color:#707682;margin-top:4px">1 LGNS = 1 DAI 固定估值 × 2.0 倍 = <b>2 DAI 算力</b>；销毁 500 枚 = 1,000 DAI 算力</div>
+    <div style="font-size:12px;color:#707682;margin-top:4px">1 LGNS = 1 DAI 固定估值 × 2.0 倍 = <b>2 DAI 算力</b>；单笔上限以链上 maximumLgns 为准</div>
   </div>
 
   <div class="card">
@@ -118,8 +122,8 @@ button:disabled{opacity:.5}
   <div class="tip">
     <b>怎么用：</b><br>
     1. 钱包 App 的「浏览器」打开本页 → 点「连接钱包」<br>
-    2. 确认「360 天长期质押 ≥ 门槛」且有 LGNS 余额<br>
-    3. 点「授权 LGNS」（只需一次）→ 输入数量 → 点「销毁并领取算力」<br>
+    2. 确认「360天质押 + 360天债券 + 600天质押 合计 ≥ 20,000 LGNS」且有 LGNS 余额<br>
+    3. 点「授权 LGNS」（只需一次）→ 输入数量 → 点「销毁并领取算力」<br>　（销毁后算力进队列，按每日释放上限、次日起产出）<br>
     4. 开着「自动抢」：额度一开放自动响铃并弹钱包确认<br><br>
     <b>参与合约：</b>算力账本 0x9E68F61E…68C1b · 资格门槛合约 0xb975FD9b…20a4b
   </div>
@@ -134,6 +138,8 @@ const CFG = {
   ledger: '0x9E68F61E2615cc1D2C4a2D0026bFc1EBFdf68C1b',
   gate: '0xb975fd9b03ff440d6a43a52a7f072154cb520a4b',
   clock: '0x6c5352e15a8327c3f44898fe220100edc2989c58',
+  lens: '0xa69a60b8d97D43031C00F16742Eb6989553796fc',
+  selBudget: '0xf77c6cce',
   selBalance: '0x70a08231',
   selAllowance: '0xdd62ed3e',
   selApprove: '0x095ea7b3',
@@ -201,9 +207,9 @@ async function refresh() {
     $('allow').textContent = a > (1n << 200n) ? '无限 ✅' : fmt(a, 4) + ' LGNS';
     const st = BigInt(await rpcCall(CFG.gate, CFG.selStakeOf + pad(account)));
     const minS = BigInt(await rpcCall(CFG.gate, CFG.selMinStake));
-    $('stake').textContent = fmt(st, 4) + ' LGNS';
+    $('stake').textContent = (Number(st)/1e9).toLocaleString('en-US',{maximumFractionDigits:4}) + ' LGNS';
     const ok = st > 0n && st >= minS;
-    $('elig').textContent = ok ? '✅ 有资格' : ('❌ 需 360 天质押 ≥ ' + fmt(minS, 2) + ' LGNS');
+    $('elig').textContent = ok ? '✅ 有资格' : ('❌ 需 360/600 天质押+债券 ≥ ' + (Number(minS)/1e9).toLocaleString('en-US') + ' LGNS');
     $('elig').style.color = ok ? 'var(--ok)' : 'var(--err)';
     const ep = BigInt(await rpcCall(CFG.clock, CFG.selEpoch));
     const be = BigInt(await rpcCall(CFG.gate, CFG.selBurnEpoch + pad(account)));
@@ -218,28 +224,35 @@ async function readQuota() {
     const q = BigInt(await rpcCall(CFG.ledger, CFG.selQueued));
     let rate = BigInt(await rpcCall(CFG.ledger, CFG.selRate)); if (rate === 0n) rate = 2000000000000000000n;
     const maxL = BigInt(await rpcCall(CFG.gate, CFG.selMaxLgns));
+    const budget = BigInt(await rpcCall(CFG.lens, CFG.selBudget));
+    const budgetL = Number(budget) / 1e9;
     const epNow = BigInt(await rpcCall(CFG.clock, CFG.selEpoch));
     const rt = Number(rate) / 1e18;
     const capL = toN(cap) / rt, usedL = toN(q) / rt, leftL = capL - usedL;
-    window.__left = leftL; window.__cap = capL; window.__max = Number(maxL) / 1e18; window.__rt = rt;
-    $('qCap').textContent = cap > 0n ? capL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS' : '0（未开放）';
-    $('qUsed').textContent = usedL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS';
-    $('qLeft').textContent = leftL > 0 ? leftL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS' : '0 LGNS';
+    window.__left = budgetL; window.__cap = capL; window.__max = Number(maxL) / 1e9; window.__rt = rt;
+    $('qCap').textContent = cap > 0n ? (Number(cap)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}) + ' DAI' : '0（未设置）';
+    $('qUsed').textContent = (Number(q)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}) + ' DAI';
+    $('qLeft').textContent = leftL > 0 ? leftL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' DAI' : '0 DAI';
     $('qLeft').style.color = leftL > 0 ? 'var(--ok)' : 'var(--err)';
-    $('qMax').textContent = maxL > 0n ? (Number(maxL)/1e18).toLocaleString('en-US') + ' LGNS / 笔' : '未设置';
+    $('qBudget').textContent = budgetL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS';
+    $('qBudget').style.color = budgetL > 0 ? 'var(--ok)' : 'var(--err)';
+    $('qReleaseCap').textContent = (Number(cap)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}) + ' DAI / 天';
+    $('qQueued').textContent = (Number(q)/1e18).toLocaleString('en-US',{maximumFractionDigits:2}) + ' DAI';
+    $('qMax').textContent = maxL > 0n ? (Number(maxL)/1e9).toLocaleString('en-US') + ' LGNS / 笔' : '未设置';
     $('qEpoch').textContent = '纪元 ' + epNow;
     $('qRate').textContent = rt.toFixed(2) + '× （1 LGNS = ' + rt.toFixed(0) + ' DAI 算力）';
     const bd = $('badge');
-    if (cap > 0n && leftL > 0) {
-      bd.className = 'badge b-ok'; bd.textContent = '额度已开放';
-      $('qState').innerHTML = '🟢 <b>已开放！</b>今日还剩 ' + leftL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS';
-      if (Date.now() - lastAlert > 60000) { lastAlert = Date.now(); beep(); document.title = '🟢 LGNS额度已开放'; }
-    } else if (cap > 0n) {
-      bd.className = 'badge b-err'; bd.textContent = '今日已满';
-      $('qState').textContent = '⏳ 今日额度用完，次日 0 点（新加坡=北京时间）重置。';
+    const notOpen = (maxL === 0n && cap === 0n);
+    if (notOpen) {
+      bd.className = 'badge b-wait'; bd.textContent = '尚 未 開 放';
+      $('qState').textContent = '⏳ 管理员尚未设置上限（每次最高 0 / 每日释放 0）—— 设置后本页自动变绿并响铃。';
+    } else if (budgetL > 0) {
+      bd.className = 'badge b-ok'; bd.textContent = '可 销 毁';
+      $('qState').innerHTML = '🟢 <b>可以销毁！</b>今日还可销毁 ' + budgetL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS；单笔最多 ' + (Number(maxL)/1e9).toLocaleString('en-US') + ' LGNS。销毁后算力进队列，次日起产出。';
+      if (Date.now() - lastAlert > 60000) { lastAlert = Date.now(); beep(); document.title = '🟢 LGNS 可销毁'; }
     } else {
-      bd.className = 'badge b-wait'; bd.textContent = '未开放';
-      $('qState').textContent = '⏳ 合约今日额度为 0（dailyBurnPowerCap=0），开放后本页自动变绿并响铃。';
+      bd.className = 'badge b-err'; bd.textContent = '今 日 已 满';
+      $('qState').textContent = '⏳ 所有钱包今日合计已达上限，隔日 0 点（新加坡=北京时间）重新开放。';
     }
   } catch(e) { $('qState').textContent = '读取失败：' + String(e.message||e).slice(0,80); }
 }
@@ -301,8 +314,19 @@ setInterval(async () => {
     await burn();
   } catch(e) {}
 }, 3000);
+const OPEN_AT = Date.UTC(2026, 9, 26, 4, 0, 0); // 2026-10-26 12:00 新加坡/北京时间
 setInterval(() => {
-  const now = Date.now(), d = new Date(now);
+  const now = Date.now();
+  const leftOpen = OPEN_AT - now;
+  if (leftOpen > 0) {
+    let o = Math.floor(leftOpen / 1000);
+    $('openCd').textContent = Math.floor(o/3600) + ' 小时 ' + String(Math.floor((o%3600)/60)).padStart(2,'0') + ' 分 ' + String(o%60).padStart(2,'0') + ' 秒';
+    $('openCd').style.color = 'var(--navy)';
+  } else {
+    $('openCd').textContent = '已到公布时间（等官方配置额度）';
+    $('openCd').style.color = 'var(--err)';
+  }
+  const d = new Date(now);
   const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 16, 0, 0, 0);
   const target = now < t ? t : t + 86400000;
   let s = Math.max(0, Math.floor((target - now) / 1000));
