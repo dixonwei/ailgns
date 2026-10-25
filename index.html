@@ -33,6 +33,7 @@ button:disabled{opacity:.5}
 .b-err{background:#fdecea;color:var(--err)}
 .b-wait{background:#fff7e6;color:#b7791f}
 #log{font-size:12px;color:var(--gray);line-height:1.7;max-height:150px;overflow-y:auto;word-break:break-all}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tab{flex:1;text-align:center;padding:11px 6px;border-radius:12px;background:#fff;border:1.5px solid #e3e7ee;color:var(--navy);font-weight:800;text-decoration:none;font-size:13.5px}.tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 .tip{font-size:12px;color:var(--gray);line-height:1.65;background:#fff;border-radius:12px;padding:12px;border-left:3px solid var(--gold)}
 .bar{position:fixed;left:0;right:0;bottom:0;background:#fff;padding:12px 14px 16px;box-shadow:0 -3px 14px rgba(16,32,64,.08)}
 .warn{background:#fff7e6;border:1px solid #ffe0a3;color:#8a6100;font-size:12.5px;padding:10px;border-radius:10px;margin-bottom:10px;line-height:1.6}
@@ -47,6 +48,10 @@ button:disabled{opacity:.5}
 </header>
 
 <div class="wrap">
+  <div class="tabs">
+    <a class="tab active" href="./index.html">💵 DAI 参与</a>
+    <a class="tab" href="./lgns.html">🔥 LGNS 销毁参与</a>
+  </div>
   <div class="warn" id="envWarn" style="display:none">
     ⚠️ 没检测到钱包。请复制本页链接，到 <b>MetaMask / OKX / TokenPocket</b> 的「内置浏览器」里打开。
   </div>
@@ -59,6 +64,8 @@ button:disabled{opacity:.5}
     <div class="row"><span class="k">已授权额度</span><span class="v" id="allow">—</span></div>
     <div style="margin-top:10px"><button class="btn-dark" id="btnConnect">连接钱包 / 切换网络</button></div>
   </div>
+
+  
 
   <div class="card" style="text-align:center">
     <h2 style="justify-content:center">🔍 额度监控中</h2>
@@ -126,7 +133,19 @@ const CFG = {
   selAllowance: '0xdd62ed3e',
   selApprove: '0x095ea7b3',
   selParticipate: '0x845c9306',
-  maxUint: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+  maxUint: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+  // ---- LGNS 销毁算力（2026-10-26 12:00 SGT 开放）----
+  lgns: '0x4D1D808a081FdAc440703b3765FC61f8028C06B8',
+  gate: '0xb975fd9b03ff440d6a43a52a7f072154cb520a4b',
+  clock: '0x6c5352e15a8327c3f44898fe220100edc2989c58',
+  selLgnsCap: '0x5fad1fe4',
+  selLgnsQueued: '0x7d5cba0e',
+  selLgnsRate: '0x3498100a',
+  selMaxLgns: '0x7300b78e',
+  selMinStake: '0xec5ffac2',
+  selStakeOf: '0x42623360',
+  selBurnEpoch: '0x99e02c2d',
+  selEpoch: '0x76671808'
 };
 const $ = id => document.getElementById(id);
 let account = null;
