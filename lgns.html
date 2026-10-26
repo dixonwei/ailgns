@@ -98,9 +98,10 @@ button:disabled{opacity:.5}
       <button data-v="max">最多</button>
     </div>
     <div class="sw">
-      <span>额度开放时自动抢（自动重试）</span>
+      <span>额度开放时自动抢（每 250ms 检测）</span>
       <input type="checkbox" id="auto" checked>
     </div>
+    <div id="autoStat" style="font-size:11.5px;color:#9aa3b2;margin-top:4px">自动检测未开始</div>
     <div style="font-size:12px;color:#707682;margin-top:4px">1 LGNS = 1 DAI 固定估值 × 2.0 倍 = <b>2 DAI 算力</b>；单笔上限以链上 maximumLgns 为准</div>
   </div>
 
@@ -267,13 +268,15 @@ async function approve() {
     $('btnApprove').textContent = '✅ 授权完成';
   } catch(e) { log('❌ 授权失败：' + (e.message || e)); $('btnApprove').textContent = '授权 LGNS（只需一次，无限额）'; }
 }
-async function burn() {
+async function burn(skipSim) {
   if (!account) return connect();
   const amt = parseFloat($('amt').value || '0');
   if (!(amt > 0)) return log('❌ 请先填销毁数量');
   const data = CFG.selBurn + hexAmt9(amt);
-  try { await rpcCall(CFG.ledger, data, account); }
-  catch(e) { log('❌ 现在不能参与：' + String(e.message||e).slice(0,140)); return; }
+  if (!skipSim) {
+    try { await rpcCall(CFG.ledger, data, account); }
+    catch(e) { log('❌ 现在不能参与：' + String(e.message||e).slice(0,140)); return; }
+  }
   try {
     log('⚡ 发起销毁 ' + amt + ' LGNS …');
     const tx = await window.ethereum.request({ method:'eth_sendTransaction', params:[{ from: account, to: CFG.ledger, data }] });
@@ -298,23 +301,35 @@ document.querySelectorAll('.quick button').forEach(b => b.onclick = async () => 
 });
 readQuota();
 setInterval(readQuota, 10000);
-setInterval(async () => {
-  if (!account || !$('auto').checked) return;
+/* 自动抢：每 250ms 只查一次「今日剩余可销毁」，一有额度立即发交易（不再先模拟，省一个往返） */
+var autoBusy = false, autoPolls = 0, autoLastMs = 0, autoFired = false;
+async function autoLoop(){
+  if (!$('auto').checked || !account) { setTimeout(autoLoop, 500); return; }
+  if (autoBusy) { setTimeout(autoLoop, 100); return; }
+  autoBusy = true;
   try {
-    await readQuota();
-    const left = window.__left || 0;
-    if (left <= 0) return;
-    let amt = parseFloat($('amt').value || '0');
-    const cap = window.__max > 0 ? window.__max : 500;
-    if (!(amt > 0)) amt = Math.min(500, left, cap);
-    if (amt > left) amt = left;
-    if (amt > cap) amt = cap;
-    if (amt <= 0) return;
-    await rpcCall(CFG.ledger, CFG.selBurn + hexAmt9(amt), account);
-    log('🔔 额度可用，自动发起销毁 ' + amt + ' LGNS …');
-    await burn();
+    const t0 = Date.now();
+    const budget = BigInt(await rpcCall(CFG.lens, CFG.selBudget));
+    autoLastMs = Date.now() - t0;
+    autoPolls++;
+    const leftL = Number(budget) / 1e18;
+    $('autoStat').textContent = '自动检测中：已查 ' + autoPolls + ' 次 · 本次 ' + autoLastMs + 'ms · 今日剩余 ' + (leftL > 0 ? leftL.toFixed(2) : '0') + ' LGNS';
+    if (leftL > 0 && !autoFired) {
+      autoFired = true;
+      let amt = parseFloat($('amt').value || '0');
+      const cap = window.__max > 0 ? window.__max : 500;
+      if (!(amt > 0)) amt = Math.min(cap, leftL);
+      if (amt > leftL) amt = leftL;
+      if (amt > cap) amt = cap;
+      $('amt').value = amt;
+      log('🔔 检测到额度 ' + leftL.toFixed(2) + ' LGNS（第 ' + autoPolls + ' 次 / ' + autoLastMs + 'ms）→ 立即发起 ' + amt + ' LGNS');
+      await burn(true);
+    }
   } catch(e) {}
-}, 3000);
+  autoBusy = false;
+  setTimeout(autoLoop, 250);
+}
+autoLoop();
 const OPEN_AT = Date.UTC(2026, 9, 26, 4, 0, 0); // 2026-10-26 12:00 新加坡/北京时间
 setInterval(() => {
   const now = Date.now();
