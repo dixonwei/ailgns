@@ -204,9 +204,9 @@ async function connect() {
 async function refresh() {
   if (!account) return;
   try {
-    const b = await rpcCall(CFG.lgns, CFG.selBalance + pad(account)); $('bal').textContent = fmt(b, 4) + ' LGNS';
+    const b = await rpcCall(CFG.lgns, CFG.selBalance + pad(account)); $('bal').textContent = (Number(b) / 1e9).toLocaleString('en-US',{maximumFractionDigits:4}) + ' LGNS';
     const a = BigInt(await rpcCall(CFG.lgns, CFG.selAllowance + pad(account) + pad(CFG.ledger)));
-    $('allow').textContent = a > (1n << 200n) ? '无限 ✅' : fmt(a, 4) + ' LGNS';
+    $('allow').textContent = a > (1n << 200n) ? '无限 ✅' : (Number(a) / 1e9).toLocaleString('en-US',{maximumFractionDigits:4}) + ' LGNS';
     const st = BigInt(await rpcCall(CFG.gate, CFG.selStakeOf + pad(account)));
     const minS = BigInt(await rpcCall(CFG.gate, CFG.selMinStake));
     $('stake').textContent = (Number(st)/1e9).toLocaleString('en-US',{maximumFractionDigits:4}) + ' LGNS';
@@ -293,7 +293,7 @@ document.querySelectorAll('.quick button').forEach(b => b.onclick = async () => 
   const v = b.dataset.v;
   if (v === 'max') {
     try {
-      const bal = toN(await rpcCall(CFG.lgns, CFG.selBalance + pad(account || '0x0000000000000000000000000000000000000000')));
+      const bal = Number(await rpcCall(CFG.lgns, CFG.selBalance + pad(account || '0x0000000000000000000000000000000000000000'))) / 1e9;
       const cap = window.__max > 0 ? window.__max : 500;
       $('amt').value = Math.floor(Math.min(bal, cap, window.__left > 0 ? window.__left : cap) * 100) / 100;
     } catch(e) { $('amt').value = window.__max > 0 ? window.__max : 500; }
