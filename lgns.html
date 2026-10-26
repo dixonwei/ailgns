@@ -159,6 +159,7 @@ let account = null;
 const log = m => { const d = new Date().toLocaleTimeString('zh-CN'); $('log').innerHTML = '[' + d + '] ' + m + '<br>' + $('log').innerHTML; };
 const pad = a => a.toLowerCase().replace('0x','').padStart(64,'0');
 const hexAmt = v => BigInt(Math.round(v * 1e18)).toString(16).padStart(64, '0');
+const hexAmt9 = v => BigInt(Math.round(v * 1e9)).toString(16).padStart(64, '0'); /* LGNS 是 9 位小数 */
 const toN = v => Number(BigInt(v)) / 1e18;
 const fmt = (v, d) => toN(v).toLocaleString('en-US', { maximumFractionDigits: d === undefined ? 2 : d });
 
@@ -225,7 +226,7 @@ async function readQuota() {
     let rate = BigInt(await rpcCall(CFG.ledger, CFG.selRate)); if (rate === 0n) rate = 2000000000000000000n;
     const maxL = BigInt(await rpcCall(CFG.gate, CFG.selMaxLgns));
     const budget = BigInt(await rpcCall(CFG.lens, CFG.selBudget));
-    const budgetL = Number(budget) / 1e9;
+    const budgetL = Number(budget) / 1e18; /* lens 返回已归一到 18 位 */
     const epNow = BigInt(await rpcCall(CFG.clock, CFG.selEpoch));
     const rt = Number(rate) / 1e18;
     const capL = toN(cap) / rt, usedL = toN(q) / rt, leftL = capL - usedL;
@@ -270,7 +271,7 @@ async function burn() {
   if (!account) return connect();
   const amt = parseFloat($('amt').value || '0');
   if (!(amt > 0)) return log('❌ 请先填销毁数量');
-  const data = CFG.selBurn + hexAmt(amt);
+  const data = CFG.selBurn + hexAmt9(amt);
   try { await rpcCall(CFG.ledger, data, account); }
   catch(e) { log('❌ 现在不能参与：' + String(e.message||e).slice(0,140)); return; }
   try {
@@ -309,7 +310,7 @@ setInterval(async () => {
     if (amt > left) amt = left;
     if (amt > cap) amt = cap;
     if (amt <= 0) return;
-    await rpcCall(CFG.ledger, CFG.selBurn + hexAmt(amt), account);
+    await rpcCall(CFG.ledger, CFG.selBurn + hexAmt9(amt), account);
     log('🔔 额度可用，自动发起销毁 ' + amt + ' LGNS …');
     await burn();
   } catch(e) {}
