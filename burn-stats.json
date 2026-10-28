@@ -1,16 +1,16 @@
 {
-  "updatedAt": "2026-10-27T18:51:42.929Z",
-  "block": 17592855,
+  "updatedAt": "2026-10-28T01:04:18.457Z",
+  "block": 17615194,
   "factory": "0xB39d8759d59592363395E4c66a3d4E4ACc9bc09D",
   "event": "BurnNFTMinted",
   "topic0": "0xd67ccdfa9242c203ed59f133bb981c49f98478f702b1ea2fb54f54afe4966fb4",
-  "nft": 3571,
-  "lgnsBurned": 3133258.798,
+  "nft": 3595,
+  "lgnsBurned": 3136870.4959,
   "ailgnsBurned": 14.991233,
-  "burnValueDai": 3143111.96,
-  "capacityDai": 6296077.09,
+  "burnValueDai": 3146723.66,
+  "capacityDai": 6303300.49,
   "modes": {
-    "1": 3532,
+    "1": 3556,
     "3": 39
   },
   "failedChunks": 0
