@@ -8,16 +8,19 @@
 :root{--navy:#102040;--navy2:#1e315c;--gold:#c9a64a;--gold2:#f0d98c;--ink:#2a2e38;--gray:#707682;--bg:#f5f7fb;--ok:#1f9d55;--err:#c0392b}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);padding-bottom:90px}
+html,body{max-width:100%;overflow-x:hidden}
 header{background:linear-gradient(160deg,var(--navy),var(--navy2));color:#fff;padding:18px 16px 22px;border-bottom:3px solid var(--gold)}
 header h1{margin:0;font-size:20px;letter-spacing:.5px}
 header .sub{margin-top:6px;font-size:12.5px;color:#c9d2e4}
 .wrap{padding:14px}
 .card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px rgba(16,32,64,.06)}
 .card h2{margin:0 0 10px;font-size:15px;color:var(--navy);display:flex;align-items:center;gap:6px}
-.row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13.5px;border-bottom:1px dashed #eceff5}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;font-size:13.5px;border-bottom:1px dashed #eceff5}
 .row:last-child{border-bottom:none}
-.row .k{color:var(--gray)}
-.row .v{font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums}
+.row .k{color:var(--gray);flex:1 1 auto;min-width:0}
+.row .v{font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;flex:0 1 auto;min-width:0;max-width:68%;text-align:right;overflow-wrap:anywhere}
+#qState,.warn,.tip{overflow-wrap:anywhere}
+.tab{min-width:0;white-space:normal}
 button{font-family:inherit;font-size:15px;border:none;border-radius:12px;padding:14px;width:100%;font-weight:700;cursor:pointer}
 .btn-primary{background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1c1503;box-shadow:0 6px 18px rgba(201,166,74,.35)}
 .btn-dark{background:var(--navy);color:#fff}
@@ -79,10 +82,15 @@ button:disabled{opacity:.5}
     <div class="row"><span class="k">每笔上限</span><span class="v" id="qMax">—</span></div>
     <div class="row"><span class="k">算力倍率</span><span class="v" id="qRate">—</span></div>
     <div class="row"><span class="k">当前纪元</span><span class="v" id="qEpoch">—</span></div>
+    <div class="row"><span class="k">今日实际首笔</span><span class="v" id="qFirst">读取中</span></div>
+    <div class="row"><span class="k">今日参与钱包</span><span class="v" id="qWallets">—</span></div>
+    <div class="row"><span class="k">首笔 → 末笔</span><span class="v" id="qSoldOut">—</span></div>
     <div id="qState" style="font-size:12px;color:#707682;margin-top:6px">正在读取…</div>
-    <div class="row"><span class="k">距官方公布开放</span><span class="v" id="openCd" style="font-variant-numeric:tabular-nums">—</span></div>
+    <div class="row"><span class="k">预测额度开放</span><span class="v">每日约 12:00</span></div>
+    <div class="row"><span class="k">距下次预测</span><span class="v" id="openCd" style="font-variant-numeric:tabular-nums">—</span></div>
+    <div class="row"><span class="k">距下一日切</span><span class="v" id="dayCutCd" style="font-variant-numeric:tabular-nums">—</span></div>
     <div style="text-align:center;margin-top:10px;font-size:26px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums" id="cd">--:--:--</div>
-    <div style="text-align:center;font-size:11.5px;color:#9aa3b2">距每日额度重置（0 点 · 新加坡=北京时间）</div>
+    <div style="text-align:center;font-size:11.5px;color:#9aa3b2">倒计时仅供参考 · 实际以链上额度大于 0 为准</div>
   </div>
 
   <div class="card">
@@ -122,10 +130,10 @@ button:disabled{opacity:.5}
 
   <div class="tip">
     <b>怎么用：</b><br>
-    1. 钱包 App 的「浏览器」打开本页 → 点「连接钱包」<br>
+    1. 钱包 App 的「浏览器」打开本页；钱包已授权时自动连接，未授权时点「连接钱包」<br>
     2. 确认「360天质押 + 360天债券 + 600天质押 合计 ≥ 20,000 LGNS」且有 LGNS 余额<br>
-    3. 点「授权 LGNS」（只需一次）→ 输入数量 → 点「销毁并领取算力」<br>　（销毁后算力进队列，按每日释放上限、次日起产出）<br>
-    4. 开着「自动抢」：额度一开放自动响铃并弹钱包确认<br><br>
+    3. 点「授权 LGNS」（只需一次）→ 输入数量；自动抢默认开启<br>
+    4. 页面打开即按链上额度实时检测，<b>不等到某个固定时间</b>；额度一旦大于 0 就立即发起，最终仍需在钱包里确认交易<br>　（销毁后算力进队列，按每日释放上限、次日起产出）<br><br>
     <b>参与合约：</b>算力账本 0x9E68F61E…68C1b · 资格门槛合约 0xb975FD9b…20a4b
   </div>
 </div>
@@ -153,6 +161,10 @@ const CFG = {
   selStakeOf: '0x42623360',
   selBurnEpoch: '0x99e02c2d',
   selEpoch: '0x76671808',
+  selCurrentDay: '0x5c9302c9',
+  selDayStart: '0x65b09d2d',
+  burnTopic: '0x16b309670cfc6e855d1def7ee55e395827e8a8694f4c701ffe0adbc7b75121cc',
+  explorerApi: 'https://browser.anubispace.org/api',
   maxUint: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
 };
 const $ = id => document.getElementById(id);
@@ -163,11 +175,73 @@ const hexAmt = v => BigInt(Math.round(v * 1e18)).toString(16).padStart(64, '0');
 const hexAmt9 = v => BigInt(Math.round(v * 1e9)).toString(16).padStart(64, '0'); /* LGNS 是 9 位小数 */
 const toN = v => Number(BigInt(v)) / 1e18;
 const fmt = (v, d) => toN(v).toLocaleString('en-US', { maximumFractionDigits: d === undefined ? 2 : d });
+const bjTime = ts => new Date(Number(ts) * 1000).toLocaleTimeString('zh-CN', { hour12:false, timeZone:'Asia/Shanghai', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+let todayActivity = { day:null, ready:false, count:0, firstTs:0, lastTs:0, wallets:0, loadedAt:0 };
+let activityBusy = false;
 
+async function explorerGet(params) {
+  const url = CFG.explorerApi + '?' + new URLSearchParams(params).toString();
+  const r = await fetch(url, { cache:'no-store' });
+  if (!r.ok) throw new Error('浏览器 API ' + r.status);
+  const j = await r.json();
+  if (Array.isArray(j.result)) return j.result;
+  if (String(j.status) !== '1') throw new Error(j.message || '浏览器 API 读取失败');
+  return j.result;
+}
+
+async function loadTodayActivity(force) {
+  if (activityBusy) return;
+  activityBusy = true;
+  try {
+    const day = BigInt(await rpcCall(CFG.clock, CFG.selCurrentDay));
+    const dayKey = day.toString();
+    if (!force && todayActivity.ready && todayActivity.day === dayKey && Date.now() - todayActivity.loadedAt < 60000) return;
+    const startTs = Number(BigInt(await rpcCall(CFG.clock, CFG.selDayStart + pad('0x' + day.toString(16)))));
+    const blockInfo = await explorerGet({ module:'block', action:'getblocknobytime', timestamp:String(startTs), closest:'before' });
+    const fromBlock = Number(blockInfo.blockNumber || blockInfo.block_number || blockInfo);
+    const latest = BigInt(await rpcRaw('eth_blockNumber', []));
+    const logs = await explorerGet({ module:'logs', action:'getLogs', address:CFG.ledger, fromBlock:String(fromBlock), toBlock:String(latest), topic0:CFG.burnTopic });
+    const times = logs.map(x => Number(BigInt(x.timeStamp || '0x0'))).filter(x => x > 0).sort((a,b) => a-b);
+    const wallets = new Set(logs.map(x => x.topics && x.topics[1]).filter(Boolean)).size || logs.length;
+    todayActivity = {
+      day: dayKey, ready:true, count:logs.length,
+      firstTs:times.length ? times[0] : 0,
+      lastTs:times.length ? times[times.length-1] : 0,
+      wallets, loadedAt:Date.now()
+    };
+    $('qFirst').textContent = todayActivity.firstTs ? bjTime(todayActivity.firstTs) : '今日暂无';
+    $('qWallets').textContent = todayActivity.wallets.toLocaleString('en-US') + ' 个';
+    if (!todayActivity.count) $('qSoldOut').textContent = '尚未开始';
+    else {
+      const secs = Math.max(0, todayActivity.lastTs - todayActivity.firstTs);
+      $('qSoldOut').textContent = secs < 1 ? '< 1 秒' : secs + ' 秒';
+    }
+    const qs = window.__quotaStatus;
+    if (qs && !qs.notOpen && qs.budgetL <= 0 && qs.epoch === dayKey) {
+      if (todayActivity.count > 0) {
+        $('badge').className = 'badge b-err'; $('badge').textContent = '今 日 已 满';
+        $('qState').textContent = '今日额度已抢完：首笔 ' + bjTime(todayActivity.firstTs) + '，末笔 ' + bjTime(todayActivity.lastTs) + '，共 ' + todayActivity.wallets + ' 个钱包参与。自动检测不会停，下一轮额度一旦大于 0 就立即发起。';
+      } else {
+        $('badge').className = 'badge b-wait'; $('badge').textContent = '等 待 额 度';
+        $('qState').textContent = '今天链上暂时还没有销毁记录。自动检测会持续运行，不按固定时间判断；额度一旦出现就立即发起交易。';
+      }
+    }
+  } catch(e) {
+    $('qFirst').textContent = '读取失败';
+    $('qWallets').textContent = '—';
+    $('qSoldOut').textContent = '—';
+  } finally {
+    activityBusy = false;
+  }
+}
+
+async function rpcRaw(method, params) {
+  const r = await fetch(CFG.rpc, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ jsonrpc:'2.0', id: Date.now(), method, params }) });
+  const j = await r.json(); if (j.error) throw new Error(j.error.message || 'call failed'); return j.result;
+}
 async function rpcCall(to, data, from) {
   const p = { to, data }; if (from) p.from = from;
-  const r = await fetch(CFG.rpc, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ jsonrpc:'2.0', id: Date.now(), method:'eth_call', params:[p,'latest'] }) });
-  const j = await r.json(); if (j.error) throw new Error(j.error.message || 'call failed'); return j.result;
+  return rpcRaw('eth_call', [p, 'latest']);
 }
 async function ensureChain() {
   const eth = window.ethereum; if (!eth) throw new Error('未检测到钱包');
@@ -193,13 +267,19 @@ async function connect() {
   const eth = window.ethereum; if (!eth) { $('envWarn').style.display='block'; return; }
   try {
     const accs = await eth.request({ method:'eth_requestAccounts' }); account = accs[0];
+    window.__ready = false;
     $('addr').textContent = account.slice(0,6)+'…'+account.slice(-4);
     await ensureChain();
     const cid = await eth.request({ method:'eth_chainId' });
     $('net').textContent = parseInt(cid,16) === CFG.chainId ? 'Anubis (6714) ✅' : '错误网络 ' + parseInt(cid,16);
     log('钱包已连接：' + account);
     await refresh();
-  } catch(e) { log('❌ ' + (e.message || e)); }
+    window.__ready = true;
+  } catch(e) {
+    window.__ready = false;
+    log('❌ ' + (e.message || e));
+    $('autoStat').textContent = '等待钱包授权：请点击“连接钱包”';
+  }
 }
 async function refresh() {
   if (!account) return;
@@ -215,6 +295,7 @@ async function refresh() {
     $('elig').style.color = ok ? 'var(--ok)' : 'var(--err)';
     const ep = BigInt(await rpcCall(CFG.clock, CFG.selEpoch));
     const be = BigInt(await rpcCall(CFG.gate, CFG.selBurnEpoch + pad(account)));
+    window.__participated = be === ep;
     $('qEpoch').textContent = '纪元 ' + ep + (be === ep ? '（你本期已参与）' : '（你可参与）');
   } catch(e) {}
   await readQuota();
@@ -229,6 +310,7 @@ async function readQuota() {
     const budget = BigInt(await rpcCall(CFG.lens, CFG.selBudget));
     const budgetL = Number(budget) / 1e18; /* lens 返回已归一到 18 位 */
     const epNow = BigInt(await rpcCall(CFG.clock, CFG.selEpoch));
+    const chainDay = BigInt(await rpcCall(CFG.clock, CFG.selCurrentDay));
     const rt = Number(rate) / 1e18;
     const capL = toN(cap) / rt, usedL = toN(q) / rt, leftL = capL - usedL;
     window.__left = budgetL; window.__cap = capL; window.__max = Number(maxL) / 1e9; window.__rt = rt;
@@ -245,17 +327,23 @@ async function readQuota() {
     $('qRate').textContent = rt.toFixed(2) + '× （1 LGNS = ' + rt.toFixed(0) + ' DAI 算力）';
     const bd = $('badge');
     const notOpen = (maxL === 0n && cap === 0n);
+    const activityReady = todayActivity.ready && todayActivity.day === chainDay.toString();
+    window.__quotaStatus = { budgetL, notOpen, epoch:chainDay.toString() };
     if (notOpen) {
       bd.className = 'badge b-wait'; bd.textContent = '尚 未 開 放';
-      $('qState').textContent = '⏳ 管理员尚未设置上限（每次最高 0 / 每日释放 0）—— 设置后本页自动变绿并响铃。';
+      $('qState').textContent = '⏳ 管理员尚未设置额度；自动检测会继续运行，链上一旦出现额度就立即发起。';
     } else if (budgetL > 0) {
       bd.className = 'badge b-ok'; bd.textContent = '可 销 毁';
-      $('qState').innerHTML = '🟢 <b>可以销毁！</b>今日还可销毁 ' + budgetL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS；单笔最多 ' + (Number(maxL)/1e9).toLocaleString('en-US') + ' LGNS。销毁后算力进队列，次日起产出。';
+      $('qState').innerHTML = '🟢 <b>检测到额度！</b>现在还可销毁 ' + budgetL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS；单笔最多 ' + (Number(maxL)/1e9).toLocaleString('en-US') + ' LGNS。自动抢会立即发起交易，请在钱包里确认。';
       if (Date.now() - lastAlert > 60000) { lastAlert = Date.now(); beep(); document.title = '🟢 LGNS 可销毁'; }
-    } else {
+    } else if (activityReady && todayActivity.count > 0) {
       bd.className = 'badge b-err'; bd.textContent = '今 日 已 满';
-      $('qState').textContent = '⏳ 所有钱包今日合计已达上限，隔日 0 点（新加坡=北京时间）重新开放。';
+      $('qState').textContent = '今日额度已抢完：首笔 ' + bjTime(todayActivity.firstTs) + '，末笔 ' + bjTime(todayActivity.lastTs) + '，共 ' + todayActivity.wallets + ' 个钱包参与。自动检测不会停，下一轮额度一旦大于 0 就立即发起。';
+    } else {
+      bd.className = 'badge b-wait'; bd.textContent = '等 待 额 度';
+      $('qState').textContent = '今天链上暂时还没有销毁记录。自动检测会持续运行，不按固定时间判断；额度一旦出现就立即发起交易。';
     }
+    loadTodayActivity();
   } catch(e) { $('qState').textContent = '读取失败：' + String(e.message||e).slice(0,80); }
 }
 async function approve() {
@@ -269,13 +357,13 @@ async function approve() {
   } catch(e) { log('❌ 授权失败：' + (e.message || e)); $('btnApprove').textContent = '授权 LGNS（只需一次，无限额）'; }
 }
 async function burn(skipSim) {
-  if (!account) return connect();
+  if (!account) { connect(); return 'busy'; }
   const amt = parseFloat($('amt').value || '0');
-  if (!(amt > 0)) return log('❌ 请先填销毁数量');
+  if (!(amt > 0)) { log('❌ 请先填销毁数量'); return 'invalid'; }
   const data = CFG.selBurn + hexAmt9(amt);
   if (!skipSim) {
     try { await rpcCall(CFG.ledger, data, account); }
-    catch(e) { log('❌ 现在不能参与：' + String(e.message||e).slice(0,140)); return; }
+    catch(e) { log('❌ 现在不能参与：' + String(e.message||e).slice(0,140)); return 'failed'; }
   }
   try {
     log('⚡ 发起销毁 ' + amt + ' LGNS …');
@@ -284,7 +372,11 @@ async function burn(skipSim) {
     const ok = await waitTx(tx);
     log(ok ? '✅ 成功，算力已按规则登记' : '⚠️ 交易失败，请到浏览器查看');
     await refresh();
-  } catch(e) { log('❌ 交易被取消或失败：' + (e.message || e)); }
+    return ok ? 'ok' : 'failed';
+  } catch(e) {
+    log('❌ 交易被取消或失败：' + (e.message || e));
+    return e && e.code === 4001 ? 'rejected' : 'failed';
+  }
 }
 $('btnConnect').onclick = connect;
 $('btnApprove').onclick = approve;
@@ -301,10 +393,21 @@ document.querySelectorAll('.quick button').forEach(b => b.onclick = async () => 
 });
 readQuota();
 setInterval(readQuota, 10000);
-/* 自动抢：每 250ms 只查一次「今日剩余可销毁」，一有额度立即发交易（不再先模拟，省一个往返） */
-var autoBusy = false, autoPolls = 0, autoLastMs = 0, autoFired = false;
+/* 自动抢：打开页面即检测链上额度，不按固定时间；额度 > 0 立即发交易 */
+var autoBusy = false, autoPolls = 0, autoLastMs = 0, autoFired = false, autoAttempts = 0;
 async function autoLoop(){
-  if (!$('auto').checked || !account) { setTimeout(autoLoop, 500); return; }
+  if (!$('auto').checked) {
+    $('autoStat').textContent = '自动抢已关闭';
+    setTimeout(autoLoop, 500); return;
+  }
+  if (!account || !window.__ready) {
+    $('autoStat').textContent = '页面已开始等待钱包授权；连接成功后自动检测额度';
+    setTimeout(autoLoop, 500); return;
+  }
+  if (window.__participated) {
+    $('autoStat').textContent = '你本期已经参与过，自动抢暂停';
+    setTimeout(autoLoop, 1000); return;
+  }
   if (autoBusy) { setTimeout(autoLoop, 100); return; }
   autoBusy = true;
   try {
@@ -313,9 +416,11 @@ async function autoLoop(){
     autoLastMs = Date.now() - t0;
     autoPolls++;
     const leftL = Number(budget) / 1e18;
-    $('autoStat').textContent = '自动检测中：已查 ' + autoPolls + ' 次 · 本次 ' + autoLastMs + 'ms · 今日剩余 ' + (leftL > 0 ? leftL.toFixed(2) : '0') + ' LGNS';
-    if (leftL > 0 && !autoFired) {
-      autoFired = true;
+    $('autoStat').textContent = '自动检测中：已查 ' + autoPolls + ' 次 · 本次 ' + autoLastMs + 'ms · 当前额度 ' + (leftL > 0 ? leftL.toFixed(2) + ' LGNS' : '0');
+    if (leftL <= 0) {
+      autoFired = false; autoAttempts = 0;
+    } else if (!autoFired) {
+      autoFired = true; autoAttempts++;
       let amt = parseFloat($('amt').value || '0');
       const cap = window.__max > 0 ? window.__max : 500;
       if (!(amt > 0)) amt = Math.min(cap, leftL);
@@ -323,33 +428,65 @@ async function autoLoop(){
       if (amt > cap) amt = cap;
       $('amt').value = amt;
       log('🔔 检测到额度 ' + leftL.toFixed(2) + ' LGNS（第 ' + autoPolls + ' 次 / ' + autoLastMs + 'ms）→ 立即发起 ' + amt + ' LGNS');
-      await burn(true);
+      const result = await burn(true);
+      if (result === 'rejected') {
+        $('auto').checked = false;
+        $('autoStat').textContent = '你在钱包里取消了确认，自动抢已暂停';
+      } else if (result !== 'ok' && autoAttempts < 3) {
+        setTimeout(() => { autoFired = false; }, 700);
+      }
     }
-  } catch(e) {}
+  } catch(e) {
+    $('autoStat').textContent = '额度检测异常，正在自动重试';
+  }
   autoBusy = false;
   setTimeout(autoLoop, 250);
 }
 autoLoop();
-const OPEN_AT = Date.UTC(2026, 9, 26, 4, 0, 0); // 2026-10-26 12:00 新加坡/北京时间
+
+function cstParts(now) {
+  const d = new Date(now + 8 * 3600000);
+  return { y:d.getUTCFullYear(), m:d.getUTCMonth(), d:d.getUTCDate() };
+}
+function nextPredictedOpen(now) {
+  const p = cstParts(now);
+  const today = Date.UTC(p.y, p.m, p.d, 4, 0, 0, 0); // 北京时间 12:00
+  return now < today ? today : today + 86400000;
+}
+function nextDayCut(now) {
+  const p = cstParts(now);
+  const today = Date.UTC(p.y, p.m, p.d, 16, 0, 0, 0); // 北京时间次日 00:00
+  return now < today ? today : today + 86400000;
+}
+function clockText(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return String(Math.floor(s/3600)).padStart(2,'0') + ':' + String(Math.floor((s%3600)/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+function friendlyClock(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return Math.floor(s/3600) + ' 小时 ' + String(Math.floor((s%3600)/60)).padStart(2,'0') + ' 分 ' + String(s%60).padStart(2,'0') + ' 秒';
+}
 setInterval(() => {
   const now = Date.now();
-  const leftOpen = OPEN_AT - now;
-  if (leftOpen > 0) {
-    let o = Math.floor(leftOpen / 1000);
-    $('openCd').textContent = Math.floor(o/3600) + ' 小时 ' + String(Math.floor((o%3600)/60)).padStart(2,'0') + ' 分 ' + String(o%60).padStart(2,'0') + ' 秒';
-    $('openCd').style.color = 'var(--navy)';
-  } else {
-    $('openCd').textContent = '已到公布时间（等官方配置额度）';
-    $('openCd').style.color = 'var(--err)';
-  }
-  const d = new Date(now);
-  const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 16, 0, 0, 0);
-  const target = now < t ? t : t + 86400000;
-  let s = Math.max(0, Math.floor((target - now) / 1000));
-  $('cd').textContent = String(Math.floor(s/3600)).padStart(2,'0') + ':' + String(Math.floor((s%3600)/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+  const openIn = nextPredictedOpen(now) - now;
+  const cutIn = nextDayCut(now) - now;
+  $('openCd').textContent = friendlyClock(openIn);
+  $('dayCutCd').textContent = friendlyClock(cutIn);
+  $('cd').textContent = clockText(openIn);
 }, 1000);
+
 if (!window.ethereum) $('envWarn').style.display = 'block';
-if (window.ethereum) window.ethereum.request({ method:'eth_accounts' }).then(a => { if (a && a[0]) connect(); });
+if (window.ethereum) {
+  window.ethereum.request({ method:'eth_accounts' })
+    .then(a => {
+      if (a && a[0]) connect();
+      else {
+        $('autoStat').textContent = '正在请求钱包授权；授权成功后自动开始检测';
+        connect();
+      }
+    })
+    .catch(() => { $('autoStat').textContent = '请点“连接钱包”授权后自动开始检测'; });
+}
 </script>
 </body>
 </html>
