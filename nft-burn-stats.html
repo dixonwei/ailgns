@@ -21,7 +21,21 @@ th,td{padding:6px 4px;border-bottom:1px solid #eef1f6;text-align:left}
 td.n,th.n{text-align:right}
 button{margin-top:10px;padding:10px 16px;border:0;border-radius:10px;background:#102040;color:#fff;font-weight:700}
 a{color:#102040}
-</style>
+.trend-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.trend-head h2{font-size:16px;color:#102040;margin:0}
+.trend-tools{display:flex;gap:6px}
+.trend-tools button{margin:0;padding:7px 12px;border-radius:9px;background:#eef1f6;color:#4a5364}
+.trend-tools button.on{background:#102040;color:#fff}
+.trend-summary{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px}
+.trend-summary .card{margin:0;padding:10px}
+.trend-card .row{padding:6px 0}
+.trend-title{display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-bottom:8px}
+.trend-title small{font-weight:400;color:#9aa3b2}
+.trend-bars{display:flex;align-items:flex-end;gap:3px;height:150px;padding-top:10px}
+.trend-col{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.trend-bar{width:100%;min-height:2px;border-radius:4px 4px 0 0;transition:height .25s}
+.trend-label{height:24px;padding-top:4px;font-size:9px;color:#9aa3b2;writing-mode:vertical-rl;text-orientation:mixed;line-height:1;white-space:nowrap}
+@media(max-width:520px){.trend-summary{grid-template-columns:1fr}.trend-label{font-size:8px}}</style>
 </head>
 <body>
 <h1>LGNS 销毁统计</h1>
@@ -42,6 +56,19 @@ a{color:#102040}
   <table id="list"><tr><th>#</th><th class="n">LGNS</th><th class="n">额度 DAI</th></tr></table>
 </div>
 
+<div class="card" id="burnTrends">
+  <div class="trend-head">
+    <h2>LGNS / AiLGNS 销毁趋势</h2>
+    <div class="trend-tools">
+      <button type="button" data-mode="day" class="on">每日</button>
+      <button type="button" data-mode="week">每周</button>
+      <button type="button" data-mode="month">每月</button>
+    </div>
+  </div>
+  <div class="trend-summary" id="trendSummary"></div>
+  <div id="trendCharts"></div>
+  <div class="small" style="margin-top:8px">数据来源：NFT 工厂 BurnNFTMinted 事件，按新加坡时间 UTC+8 汇总。页面每天自动读取最新统计，无需手动刷新。</div>
+</div>
 <div class="card small">
   工厂：0xB39d8759d59592363395E4c66a3d4E4ACc9bc09D · 事件 BurnNFTMinted（topic0 0xd67ccdfa…）<br>
   每条 data 第 4 段 = lgnsAmount（LGNS <b>9 位小数</b>，÷1e9）；第 9 段 = 初始额度（÷1e18）<br>
@@ -55,6 +82,7 @@ var FACT='0xB39d8759d59592363395E4c66a3d4E4ACc9bc09D';
 var T0='0xd67ccdfa9242c203ed59f133bb981c49f98478f702b1ea2fb54f54afe4966fb4';
 var START=14922281, CHUNK=100000, GAP=400, head=0;
 var nft=0, lgns=0, ai=0, dai=0, cap=0, last=[], failed=0;
+var dailyData=[], dailyMap={}, trendMode="day";
 function $(id){return document.getElementById(id);}
 function fmt(n,d){ if(isNaN(n))return '—'; var s=n.toFixed(d); var p=s.split('.'); p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,','); return p.join('.'); }
 
@@ -88,6 +116,9 @@ function scanChunk(from,to,attempt,done){
       var w=String(x.data).slice(2).match(/.{1,64}/g)||[]; if(w.length<9) return;
       var ln=Number(BigInt('0x'+w[3]))/1e9;
       var an=Number(BigInt('0x'+w[4]))/1e18;
+      var dk=new Date(Number(BigInt(x.timeStamp))*1000+8*3600*1000).toISOString().slice(0,10);
+      if(!dailyMap[dk]) dailyMap[dk]={lgns:0,ailgns:0};
+      dailyMap[dk].lgns+=ln; dailyMap[dk].ailgns+=an;
       var bv=Number(BigInt('0x'+w[7]))/1e18;
       var cp=Number(BigInt('0x'+w[8]))/1e18;
       lgns+=ln; ai+=an; dai+=bv; cap+=cp; nft++;
@@ -98,6 +129,59 @@ function scanChunk(from,to,attempt,done){
     done();
   });
 }
+function allDailyRows(){
+  var rows=[];
+  if(dailyData && dailyData.length) rows=dailyData.slice();
+  else rows=Object.keys(dailyMap).map(function(d){return {date:d,lgns:dailyMap[d].lgns,ailgns:dailyMap[d].ailgns};});
+  return rows.sort(function(a,b){return a.date.localeCompare(b.date);});
+}
+function bucketRows(mode){
+  var rows=allDailyRows();
+  if(!rows.length) return [];
+  if(mode==='day') return rows.slice(-30).map(function(x){return {label:x.date.slice(5),full:x.date,lgns:x.lgns,ailgns:x.ailgns};});
+  var map={};
+  rows.forEach(function(x){
+    var d=new Date(x.date+'T00:00:00+08:00');
+    var key;
+    if(mode==='week'){
+      var day=(d.getUTCDay()+6)%7;
+      d.setUTCDate(d.getUTCDate()-day);
+      key=d.toISOString().slice(0,10);
+    } else key=x.date.slice(0,7);
+    if(!map[key]) map[key]={lgns:0,ailgns:0};
+    map[key].lgns+=x.lgns; map[key].ailgns+=x.ailgns;
+  });
+  var arr=Object.keys(map).sort().map(function(k){return {label:mode==='month'?k.slice(2):k.slice(5),full:k,lgns:map[k].lgns,ailgns:map[k].ailgns};});
+  return arr.slice(mode==='week'?-16:-12);
+}
+function drawBurnChart(title, rows, key, color){
+  var max=Math.max.apply(null,rows.map(function(x){return x[key]||0}).concat([1]));
+  var step=Math.max(1,Math.ceil(rows.length/9));
+  var bars=rows.map(function(x,i){
+    var h=Math.max(2,(x[key]||0)/max*130);
+    var lab=(i%step===0||i===rows.length-1)?x.label:'';
+    return '<div class="trend-col" title="'+x.full+': '+fmt(x[key],4)+'"><div class="trend-bar" style="height:'+h+'px;background:'+color+'"></div><div class="trend-label">'+lab+'</div></div>';
+  }).join('');
+  return '<div class="card trend-card"><div class="trend-title"><span>'+title+'</span><small>最高 '+fmt(max,2)+'</small></div><div class="trend-bars">'+bars+'</div></div>';
+}
+function renderBurnTrends(){
+  var rows=bucketRows(trendMode);
+  var sumL=0,sumA=0;
+  rows.forEach(function(x){sumL+=x.lgns;sumA+=x.ailgns;});
+  var period=trendMode==='day'?'近30日':trendMode==='week'?'近16周':'近12月';
+  var sm=$('trendSummary');
+  if(sm) sm.innerHTML='<div class="card"><div class="row"><span class="k">'+period+'销毁 LGNS</span><span class="v">'+fmt(sumL,2)+'</span></div></div><div class="card"><div class="row"><span class="k">'+period+'销毁 AiLGNS</span><span class="v">'+fmt(sumA,4)+'</span></div></div>';
+  var box=$('trendCharts');
+  if(!box) return;
+  box.innerHTML=rows.length ? drawBurnChart('LGNS 销毁量',rows,'lgns','#d18a19')+drawBurnChart('AiLGNS 销毁量',rows,'ailgns','#4d76d8') : '<div class="small">暂无可展示的每日数据</div>';
+}
+document.querySelectorAll('.trend-tools button').forEach(function(b){
+  b.addEventListener('click',function(){
+    trendMode=b.getAttribute('data-mode');
+    document.querySelectorAll('.trend-tools button').forEach(function(x){x.classList.remove('on')});
+    b.classList.add('on'); renderBurnTrends();
+  });
+});
 function render(){
   $('nft').textContent=fmt(nft,0)+' 个';
   $('lgns').textContent=fmt(lgns,2)+' LGNS';
@@ -119,7 +203,7 @@ function loop(from){
   scanChunk(from,to,1,function(){ setTimeout(function(){ loop(to+1); }, GAP); });
 }
 function start(){
-  nft=0;lgns=0;ai=0;dai=0;cap=0;last=[];failed=0;render();
+  nft=0;lgns=0;ai=0;dai=0;cap=0;last=[];failed=0;dailyMap={};dailyData=[];render();
   $('prog').textContent='读取当前区块…';
   xhr(RPC,'POST',JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_blockNumber',params:[]}),function(j,e){
     if(e||!j||!j.result){ $('prog').textContent='读取区块号失败：'+(e||''); return; }
@@ -133,6 +217,7 @@ function loadPrecomputed(){
   xhr('burn-stats.json?t='+Date.now(),'GET',null,function(j,e){
     if(e||!j||j.nft==null){ start(); return; }
     nft=j.nft; lgns=j.lgnsBurned; ai=j.ailgnsBurned; dai=j.burnValueDai; cap=j.capacityDai; last=[];
+    dailyData=Array.isArray(j.daily)?j.daily:[]; dailyMap={};
     render();
     var t=new Date(j.updatedAt).toLocaleString('zh-CN',{hour12:false});
     $('prog').innerHTML='<span class="ok">✅ 已读取服务器统计</span>（更新于 '+t+'，每 6 小时自动更新；要明细点「重新扫描」）';

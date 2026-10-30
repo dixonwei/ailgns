@@ -43,6 +43,7 @@ const main = async () => {
   const head = parseInt(await rpc('eth_blockNumber', []), 16);
   let nft = 0, lgns = 0, ailgns = 0, valueDai = 0, capacityDai = 0, failed = 0;
   const modes = {};
+  const daily = {};
   for (let b = START; b <= head; b += CHUNK) {
     const to = Math.min(b + CHUNK - 1, head);
     let arr;
@@ -52,8 +53,15 @@ const main = async () => {
       if (w.length < 9) continue;
       const mode = Number(BigInt('0x' + w[0]));
       modes[mode] = (modes[mode] || 0) + 1;
-      lgns += Number(BigInt('0x' + w[3])) / 1e9;
-      ailgns += Number(BigInt('0x' + w[4])) / 1e18;
+      const ln = Number(BigInt('0x' + w[3])) / 1e9;
+      const an = Number(BigInt('0x' + w[4])) / 1e18;
+      const ts = Number(BigInt(x.timeStamp)) * 1000 + 8 * 3600 * 1000;
+      const date = new Date(ts).toISOString().slice(0, 10);
+      if (!daily[date]) daily[date] = { lgns: 0, ailgns: 0 };
+      daily[date].lgns += ln;
+      daily[date].ailgns += an;
+      lgns += ln;
+      ailgns += an;
       valueDai += Number(BigInt('0x' + w[7])) / 1e18;
       capacityDai += Number(BigInt('0x' + w[8])) / 1e18;
       nft++;
@@ -73,6 +81,7 @@ const main = async () => {
     burnValueDai: Number(valueDai.toFixed(2)),
     capacityDai: Number(capacityDai.toFixed(2)),
     modes,
+    daily: Object.entries(daily).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,v])=>({date,lgns:Number(v.lgns.toFixed(4)),ailgns:Number(v.ailgns.toFixed(6))})),
     failedChunks: failed,
   };
   writeFileSync(OUT, JSON.stringify(out, null, 2), 'utf8');
