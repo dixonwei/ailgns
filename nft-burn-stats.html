@@ -35,7 +35,13 @@ a{color:#102040}
 .trend-col{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
 .trend-bar{width:100%;min-height:2px;border-radius:4px 4px 0 0;transition:height .25s}
 .trend-label{height:24px;padding-top:4px;font-size:9px;color:#9aa3b2;writing-mode:vertical-rl;text-orientation:mixed;line-height:1;white-space:nowrap}
-@media(max-width:520px){.trend-summary{grid-template-columns:1fr}.trend-label{font-size:8px}}</style>
+@media(max-width:520px){.trend-summary{grid-template-columns:1fr}.trend-label{font-size:8px}}.kline-area{height:190px;padding:8px 2px 0;border-bottom:1px solid #dfe4ec;background:repeating-linear-gradient(to top,transparent 0,transparent 47px,#eef1f6 48px)}
+.kline-bars{display:flex;align-items:flex-start;gap:3px;height:168px;position:relative}
+.klcol{flex:1;min-width:0;height:168px;position:relative}
+.klwick{position:absolute;left:50%;width:1px;transform:translateX(-50%)}
+.klbody{position:absolute;left:14%;width:72%;min-height:2px;border-radius:1px}
+.kllabel{position:absolute;top:171px;left:50%;transform:translateX(-50%);font-size:9px;color:#9aa3b2;white-space:nowrap}
+.trend-title small{font-weight:400;color:#9aa3b2}</style>
 </head>
 <body>
 <h1>LGNS 销毁统计</h1>
@@ -82,7 +88,7 @@ var FACT='0xB39d8759d59592363395E4c66a3d4E4ACc9bc09D';
 var T0='0xd67ccdfa9242c203ed59f133bb981c49f98478f702b1ea2fb54f54afe4966fb4';
 var START=14922281, CHUNK=100000, GAP=400, head=0;
 var nft=0, lgns=0, ai=0, dai=0, cap=0, last=[], failed=0;
-var dailyData=[], dailyMap={}, trendMode="day";
+var dailyData=[], dailyMap={}, hourlyData=[], hourlyMap={}, trendMode="day";
 function $(id){return document.getElementById(id);}
 function fmt(n,d){ if(isNaN(n))return '—'; var s=n.toFixed(d); var p=s.split('.'); p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,','); return p.join('.'); }
 
@@ -119,6 +125,9 @@ function scanChunk(from,to,attempt,done){
       var dk=new Date(Number(BigInt(x.timeStamp))*1000+8*3600*1000).toISOString().slice(0,10);
       if(!dailyMap[dk]) dailyMap[dk]={lgns:0,ailgns:0};
       dailyMap[dk].lgns+=ln; dailyMap[dk].ailgns+=an;
+      var hk=new Date(Number(BigInt(x.timeStamp))*1000+8*3600*1000).toISOString().slice(0,13);
+      if(!hourlyMap[hk]) hourlyMap[hk]={lgns:0,ailgns:0};
+      hourlyMap[hk].lgns+=ln; hourlyMap[hk].ailgns+=an;
       var bv=Number(BigInt('0x'+w[7]))/1e18;
       var cp=Number(BigInt('0x'+w[8]))/1e18;
       lgns+=ln; ai+=an; dai+=bv; cap+=cp; nft++;
@@ -135,45 +144,74 @@ function allDailyRows(){
   else rows=Object.keys(dailyMap).map(function(d){return {date:d,lgns:dailyMap[d].lgns,ailgns:dailyMap[d].ailgns};});
   return rows.sort(function(a,b){return a.date.localeCompare(b.date);});
 }
-function bucketRows(mode){
-  var rows=allDailyRows();
-  if(!rows.length) return [];
-  if(mode==='day') return rows.slice(-30).map(function(x){return {label:x.date.slice(5),full:x.date,lgns:x.lgns,ailgns:x.ailgns};});
-  var map={};
-  rows.forEach(function(x){
-    var d=new Date(x.date+'T00:00:00+08:00');
-    var key;
-    if(mode==='week'){
-      var day=(d.getUTCDay()+6)%7;
-      d.setUTCDate(d.getUTCDate()-day);
-      key=d.toISOString().slice(0,10);
-    } else key=x.date.slice(0,7);
-    if(!map[key]) map[key]={lgns:0,ailgns:0};
-    map[key].lgns+=x.lgns; map[key].ailgns+=x.ailgns;
-  });
-  var arr=Object.keys(map).sort().map(function(k){return {label:mode==='month'?k.slice(2):k.slice(5),full:k,lgns:map[k].lgns,ailgns:map[k].ailgns};});
-  return arr.slice(mode==='week'?-16:-12);
+function allHourlyRows(){
+  var rows=[];
+  if(hourlyData && hourlyData.length) rows=hourlyData.slice();
+  else rows=Object.keys(hourlyMap).map(function(t){return {time:t,lgns:hourlyMap[t].lgns,ailgns:hourlyMap[t].ailgns};});
+  return rows.sort(function(a,b){return a.time.localeCompare(b.time);});
 }
-function drawBurnChart(title, rows, key, color){
-  var max=Math.max.apply(null,rows.map(function(x){return x[key]||0}).concat([1]));
+function periodKey(dateStr, mode){
+  if(mode==='month') return dateStr.slice(0,7);
+  var d=new Date(dateStr+'T00:00:00+08:00');
+  var day=(d.getUTCDay()+6)%7;
+  d.setUTCDate(d.getUTCDate()-day);
+  return d.toISOString().slice(0,10);
+}
+function makeCandle(values){
+  if(!values.length) return null;
+  var open=values[0], close=values[values.length-1], high=Math.max.apply(null,values), low=Math.min.apply(null,values);
+  return {open:open,close:close,high:high,low:low};
+}
+function klineBuckets(mode,key){
+  var daily=allDailyRows(), groups={};
+  if(mode==='day'){
+    allHourlyRows().forEach(function(h){
+      var d=h.time.slice(0,10);
+      if(!groups[d]) groups[d]={values:[]};
+      groups[d].values.push(h[key]||0);
+    });
+    daily.forEach(function(x){ if(groups[x.date]) groups[x.date].total=(groups[x.date].total||0)+x[key]; });
+  } else {
+    daily.forEach(function(x){
+      var k=periodKey(x.date,mode);
+      if(!groups[k]) groups[k]={values:[]};
+      groups[k].values.push(x[key]||0);
+    });
+  }
+  var keys=Object.keys(groups).sort();
+  if(mode==='day') keys=keys.slice(-30); else keys=keys.slice(mode==='week'?-16:-12);
+  return keys.map(function(k){
+    var values=groups[k].values.slice();
+    var candle=makeCandle(values);
+    var total=(mode==='day' && groups[k].total!=null) ? groups[k].total : values.reduce(function(a,b){return a+b;},0);
+    return {label:mode==='month'?k.slice(2):k.slice(5),full:k,values:values,candle:candle,total:total};
+  });
+}
+function drawCandlestick(title, rows, key){
+  if(!rows.length) return '<div class="card trend-card"><div class="trend-title"><span>'+title+'</span></div><div class="small">暂无数据</div></div>';
+  var max=-Infinity,min=Infinity;
+  rows.forEach(function(x){max=Math.max(max,x.candle.high);min=Math.min(min,x.candle.low);});
+  var range=max-min; if(!(range>0)) range=Math.max(max*0.05,1);
   var step=Math.max(1,Math.ceil(rows.length/9));
-  var bars=rows.map(function(x,i){
-    var h=Math.max(2,(x[key]||0)/max*130);
+  var cols=rows.map(function(x,i){
+    var c=x.candle,yHigh=(max-c.high)/range*145,yLow=(max-c.low)/range*145;
+    var topA=(max-Math.max(c.open,c.close))/range*145,topB=(max-Math.min(c.open,c.close))/range*145;
+    var color=c.close>=c.open?'#d84a4a':'#1f9d55';
     var lab=(i%step===0||i===rows.length-1)?x.label:'';
-    return '<div class="trend-col" title="'+x.full+': '+fmt(x[key],4)+'"><div class="trend-bar" style="height:'+h+'px;background:'+color+'"></div><div class="trend-label">'+lab+'</div></div>';
+    var tip=x.full+' 开:'+fmt(c.open,4)+' 高:'+fmt(c.high,4)+' 低:'+fmt(c.low,4)+' 收:'+fmt(c.close,4);
+    return '<div class="klcol" title="'+tip+'"><div class="klwick" style="top:'+yHigh+'px;height:'+Math.max(1,yLow-yHigh)+'px;background:'+color+'"></div><div class="klbody" style="top:'+topA+'px;height:'+Math.max(2,topB-topA)+'px;background:'+color+'"></div><div class="kllabel">'+lab+'</div></div>';
   }).join('');
-  return '<div class="card trend-card"><div class="trend-title"><span>'+title+'</span><small>最高 '+fmt(max,2)+'</small></div><div class="trend-bars">'+bars+'</div></div>';
+  return '<div class="card trend-card"><div class="trend-title"><span>'+title+' K线</span><small>高 '+fmt(max,2)+' · 低 '+fmt(min,2)+' · 红涨绿跌</small></div><div class="kline-area"><div class="kline-bars">'+cols+'</div></div></div>';
 }
 function renderBurnTrends(){
-  var rows=bucketRows(trendMode);
+  var lrows=klineBuckets(trendMode,'lgns'), arows=klineBuckets(trendMode,'ailgns');
   var sumL=0,sumA=0;
-  rows.forEach(function(x){sumL+=x.lgns;sumA+=x.ailgns;});
+  lrows.forEach(function(x){sumL+=x.total;}); arows.forEach(function(x){sumA+=x.total;});
   var period=trendMode==='day'?'近30日':trendMode==='week'?'近16周':'近12月';
   var sm=$('trendSummary');
   if(sm) sm.innerHTML='<div class="card"><div class="row"><span class="k">'+period+'销毁 LGNS</span><span class="v">'+fmt(sumL,2)+'</span></div></div><div class="card"><div class="row"><span class="k">'+period+'销毁 AiLGNS</span><span class="v">'+fmt(sumA,4)+'</span></div></div>';
   var box=$('trendCharts');
-  if(!box) return;
-  box.innerHTML=rows.length ? drawBurnChart('LGNS 销毁量',rows,'lgns','#d18a19')+drawBurnChart('AiLGNS 销毁量',rows,'ailgns','#4d76d8') : '<div class="small">暂无可展示的每日数据</div>';
+  if(box) box.innerHTML=drawCandlestick('LGNS',lrows,'lgns')+drawCandlestick('AiLGNS',arows,'ailgns');
 }
 document.querySelectorAll('.trend-tools button').forEach(function(b){
   b.addEventListener('click',function(){
@@ -203,7 +241,7 @@ function loop(from){
   scanChunk(from,to,1,function(){ setTimeout(function(){ loop(to+1); }, GAP); });
 }
 function start(){
-  nft=0;lgns=0;ai=0;dai=0;cap=0;last=[];failed=0;dailyMap={};dailyData=[];render();
+  nft=0;lgns=0;ai=0;dai=0;cap=0;last=[];failed=0;dailyMap={};dailyData=[];hourlyMap={};hourlyData=[];render();
   $('prog').textContent='读取当前区块…';
   xhr(RPC,'POST',JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_blockNumber',params:[]}),function(j,e){
     if(e||!j||!j.result){ $('prog').textContent='读取区块号失败：'+(e||''); return; }
@@ -217,7 +255,7 @@ function loadPrecomputed(){
   xhr('burn-stats.json?t='+Date.now(),'GET',null,function(j,e){
     if(e||!j||j.nft==null){ start(); return; }
     nft=j.nft; lgns=j.lgnsBurned; ai=j.ailgnsBurned; dai=j.burnValueDai; cap=j.capacityDai; last=[];
-    dailyData=Array.isArray(j.daily)?j.daily:[]; dailyMap={};
+    dailyData=Array.isArray(j.daily)?j.daily:[]; dailyMap={}; hourlyData=Array.isArray(j.hourly)?j.hourly:[]; hourlyMap={};
     render();
     var t=new Date(j.updatedAt).toLocaleString('zh-CN',{hour12:false});
     $('prog').innerHTML='<span class="ok">✅ 已读取服务器统计</span>（更新于 '+t+'，每 6 小时自动更新；要明细点「重新扫描」）';

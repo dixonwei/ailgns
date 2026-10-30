@@ -44,6 +44,7 @@ const main = async () => {
   let nft = 0, lgns = 0, ailgns = 0, valueDai = 0, capacityDai = 0, failed = 0;
   const modes = {};
   const daily = {};
+  const hourly = {};
   for (let b = START; b <= head; b += CHUNK) {
     const to = Math.min(b + CHUNK - 1, head);
     let arr;
@@ -57,9 +58,13 @@ const main = async () => {
       const an = Number(BigInt('0x' + w[4])) / 1e18;
       const ts = Number(BigInt(x.timeStamp)) * 1000 + 8 * 3600 * 1000;
       const date = new Date(ts).toISOString().slice(0, 10);
+      const hour = new Date(ts).toISOString().slice(0, 13);
       if (!daily[date]) daily[date] = { lgns: 0, ailgns: 0 };
       daily[date].lgns += ln;
+      if (!hourly[hour]) hourly[hour] = { lgns: 0, ailgns: 0 };
+      hourly[hour].lgns += ln;
       daily[date].ailgns += an;
+      hourly[hour].ailgns += an;
       lgns += ln;
       ailgns += an;
       valueDai += Number(BigInt('0x' + w[7])) / 1e18;
@@ -82,6 +87,7 @@ const main = async () => {
     capacityDai: Number(capacityDai.toFixed(2)),
     modes,
     daily: Object.entries(daily).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,v])=>({date,lgns:Number(v.lgns.toFixed(4)),ailgns:Number(v.ailgns.toFixed(6))})),
+    hourly: Object.entries(hourly).sort((a,b)=>a[0].localeCompare(b[0])).map(([time,v])=>({time,lgns:Number(v.lgns.toFixed(4)),ailgns:Number(v.ailgns.toFixed(6))})),
     failedChunks: failed,
   };
   writeFileSync(OUT, JSON.stringify(out, null, 2), 'utf8');
