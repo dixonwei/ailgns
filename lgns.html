@@ -106,10 +106,10 @@ button:disabled{opacity:.5}
       <button data-v="max">最多</button>
     </div>
     <div class="sw">
-      <span>额度开放时自动抢（每 250ms 检测）</span>
+      <span>额度开放时自动检测并拉起钱包确认（每 150ms 检测）</span>
       <input type="checkbox" id="auto" checked>
     </div>
-    <div id="autoStat" style="font-size:11.5px;color:#9aa3b2;margin-top:4px">自动检测未开始</div>
+    <div id="autoStat" style="font-size:11.5px;color:#9aa3b2;margin-top:4px">自动检测未开始</div><div class="warn" style="margin-top:8px">本页不能替你签名或跳过钱包确认。请保持页面前台、屏幕常亮；额度曾在 5 秒内被 400 个钱包抢完。</div>
     <div style="font-size:12px;color:#707682;margin-top:4px">1 LGNS = 1 DAI 固定估值 × 2.0 倍 = <b>2 DAI 算力</b>；单笔上限以链上 maximumLgns 为准</div>
   </div>
 
@@ -176,7 +176,7 @@ const hexAmt9 = v => BigInt(Math.round(v * 1e9)).toString(16).padStart(64, '0');
 const toN = v => Number(BigInt(v)) / 1e18;
 const fmt = (v, d) => toN(v).toLocaleString('en-US', { maximumFractionDigits: d === undefined ? 2 : d });
 const bjTime = ts => new Date(Number(ts) * 1000).toLocaleTimeString('zh-CN', { hour12:false, timeZone:'Asia/Shanghai', hour:'2-digit', minute:'2-digit', second:'2-digit' });
-let todayActivity = { day:null, ready:false, count:0, firstTs:0, lastTs:0, wallets:0, loadedAt:0 };
+let todayActivity = { day:null, ready:false, count:0, firstTs:0, lastTs:0, wallets:0, totalLgns:0, loadedAt:0 };
 let activityBusy = false;
 
 async function explorerGet(params) {
@@ -235,9 +235,23 @@ async function loadTodayActivity(force) {
   }
 }
 
+async function rpcAt(url, method, params) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 2500);
+  try {
+    const r = await fetch(url, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ jsonrpc:'2.0', id: Date.now(), method, params }), signal:ctrl.signal });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error.message || 'call failed');
+    return j.result;
+  } finally { clearTimeout(timer); }
+}
 async function rpcRaw(method, params) {
-  const r = await fetch(CFG.rpc, { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ jsonrpc:'2.0', id: Date.now(), method, params }) });
-  const j = await r.json(); if (j.error) throw new Error(j.error.message || 'call failed'); return j.result;
+  const urls = [CFG.rpc, CFG.rpcFallback].filter((v,i,a) => v && a.indexOf(v) === i);
+  try {
+    return await Promise.any(urls.map(url => rpcAt(url, method, params)));
+  } catch (e) {
+    throw new Error('RPC 节点暂时都不可用，请保持页面前台并稍后重试');
+  }
 }
 async function rpcCall(to, data, from) {
   const p = { to, data }; if (from) p.from = from;
@@ -334,7 +348,7 @@ async function readQuota() {
       $('qState').textContent = '⏳ 管理员尚未设置额度；自动检测会继续运行，链上一旦出现额度就立即发起。';
     } else if (budgetL > 0) {
       bd.className = 'badge b-ok'; bd.textContent = '可 销 毁';
-      $('qState').innerHTML = '🟢 <b>检测到额度！</b>现在还可销毁 ' + budgetL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS；单笔最多 ' + (Number(maxL)/1e9).toLocaleString('en-US') + ' LGNS。自动抢会立即发起交易，请在钱包里确认。';
+      $('qState').innerHTML = '🟢 <b>检测到额度！</b>现在还可销毁 ' + budgetL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS；单笔最多 ' + (Number(maxL)/1e9).toLocaleString('en-US') + ' LGNS。自动检测会立即发起交易，请在钱包里确认。';
       if (Date.now() - lastAlert > 60000) { lastAlert = Date.now(); beep(); document.title = '🟢 LGNS 可销毁'; }
     } else if (activityReady && todayActivity.count > 0) {
       bd.className = 'badge b-err'; bd.textContent = '今 日 已 满';
@@ -440,7 +454,7 @@ async function autoLoop(){
     $('autoStat').textContent = '额度检测异常，正在自动重试';
   }
   autoBusy = false;
-  setTimeout(autoLoop, 250);
+  setTimeout(autoLoop, 150);
 }
 autoLoop();
 
