@@ -76,7 +76,7 @@ button:disabled{opacity:.5}
     <div class="row"><span class="k">今日销毁上限</span><span class="v" id="qCap">—</span></div>
     <div class="row"><span class="k">今日已销毁</span><span class="v" id="qUsed">—</span></div>
     <div class="row"><span class="k">今日剩余可销毁</span><span class="v" id="qLeft">—</span></div>
-    <div class="row"><span class="k">Lens参考预算（辅助）</span><span class="v" id="qBudget">—</span></div>
+    <div class="row"><span class="k">Lens开放预算（辅助）</span><span class="v" id="qBudget">—</span></div>
     <div class="row"><span class="k">每日释放上限</span><span class="v" id="qReleaseCap">—</span></div>
     <div class="row"><span class="k">已排队算力</span><span class="v" id="qQueued">—</span></div>
     <div class="row"><span class="k">每笔上限</span><span class="v" id="qMax">—</span></div>
@@ -86,11 +86,13 @@ button:disabled{opacity:.5}
     <div class="row"><span class="k">今日参与钱包</span><span class="v" id="qWallets">—</span></div>
     <div class="row"><span class="k">首笔 → 末笔</span><span class="v" id="qSoldOut">—</span></div>
     <div id="qState" style="font-size:12px;color:#707682;margin-top:6px">正在读取…</div>
-    <div class="row"><span class="k">预测额度开放</span><span class="v">每日约 11:59—12:00</span></div>
-    <div class="row"><span class="k">距下次预测</span><span class="v" id="openCd" style="font-variant-numeric:tabular-nums">—</span></div>
+    <div class="row"><span class="k">检测模式</span><span class="v">打开页面即全天候检测</span></div>
+    <div class="row"><span class="k">触发条件</span><span class="v">开放信号 + 真实名额未满</span></div>
+    <div class="row"><span class="k">预测参考（不参与抢购）</span><span class="v">每日约 11:59—12:00</span></div>
+    <div class="row"><span class="k">距下次预测参考</span><span class="v" id="openCd" style="font-variant-numeric:tabular-nums">—</span></div>
     <div class="row"><span class="k">距下一日切</span><span class="v" id="dayCutCd" style="font-variant-numeric:tabular-nums">—</span></div>
     <div style="text-align:center;margin-top:10px;font-size:26px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums" id="cd">--:--:--</div>
-    <div style="text-align:center;font-size:11.5px;color:#9aa3b2">倒计时仅供参考 · 实际以链上额度大于 0 为准</div>
+    <div style="text-align:center;font-size:11.5px;color:#9aa3b2">预测时间只做展示，不参与判断；链上条件满足即触发</div>
   </div>
 
   <div class="card">
@@ -362,10 +364,13 @@ async function readQuota() {
     if (notOpen) {
       bd.className = 'badge b-wait'; bd.textContent = '尚 未 開 放';
       $('qState').textContent = '⏳ 合约尚未设置今日上限；自动检测会继续运行。';
-    } else if (remainingTodayL > 0) {
+    } else if (remainingTodayL > 0 && budgetL > 0) {
       bd.className = 'badge b-ok'; bd.textContent = '可 销 毁';
-      $('qState').innerHTML = '🟢 <b>真实额度仍可参与！</b>今日已销毁 ' + burnedL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' / ' + dailyMaxL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS，剩余 ' + remainingTodayL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS；单笔最多 ' + (Number(maxL)/1e9).toLocaleString('en-US') + ' LGNS。检测到后会立即拉起钱包确认。';
+      $('qState').innerHTML = '🟢 <b>链上已开放，真实名额未满！</b>今日已销毁 ' + burnedL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' / ' + dailyMaxL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS，剩余 ' + remainingTodayL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS。检测到后会立即拉起钱包确认。';
       if (Date.now() - lastAlert > 60000) { lastAlert = Date.now(); beep(); document.title = '🟢 LGNS 可销毁'; }
+    } else if (remainingTodayL > 0) {
+      bd.className = 'badge b-wait'; bd.textContent = '等 待 开 放';
+      $('qState').textContent = '今日真实名额还有 ' + remainingTodayL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS，但链上开放预算尚未出现。本工具会全天候检测，不依赖预测时间。';
     } else if (activityReady && todayActivity.count > 0) {
       bd.className = 'badge b-err'; bd.textContent = '今 日 已 满';
       $('qState').textContent = '今日 200,000 LGNS 销毁额度已满：共 ' + todayActivity.wallets + ' 个钱包参与。Lens 辅助预算即使仍显示大于 0，也不能再看它判断名额。';
@@ -442,16 +447,22 @@ async function autoLoop(){
   autoBusy = true;
   try {
     const t0 = Date.now();
-    const burned = BigInt(await rpcCall(CFG.gate, CFG.selBurnedToday));
+    const [budget, burned] = await Promise.all([
+      rpcCall(CFG.lens, CFG.selBudget),
+      rpcCall(CFG.gate, CFG.selBurnedToday)
+    ]);
     const dailyMax = window.__dailyMaxRaw != null ? window.__dailyMaxRaw : BigInt(await rpcCall(CFG.gate, CFG.selDailyMax));
     autoLastMs = Date.now() - t0;
     autoPolls++;
+    const budgetL = Number(BigInt(budget)) / 1e18;
     const leftL = Math.max(0, (Number(dailyMax) - Number(burned)) / 1e9);
+    const quotaOpen = budgetL > 0 && leftL > 0;
     window.__left = leftL;
+    window.__budgetL = budgetL;
     window.__burnedTodayRaw = burned;
     window.__dailyMaxRaw = dailyMax;
-    $('autoStat').textContent = '自动检测中：已查 ' + autoPolls + ' 次 · 本次 ' + autoLastMs + 'ms · 真实剩余 ' + leftL.toFixed(2) + ' LGNS · 请保持页面前台';
-    if (leftL <= 0) {
+    $('autoStat').textContent = '全天候检测中：已查 ' + autoPolls + ' 次 · ' + autoLastMs + 'ms · 开放预算 ' + budgetL.toFixed(2) + ' · 真实剩余 ' + leftL.toFixed(2) + ' LGNS';
+    if (!quotaOpen) {
       autoFired = false; autoAttempts = 0;
     } else if (!autoFired) {
       autoFired = true; autoAttempts++;
@@ -461,7 +472,7 @@ async function autoLoop(){
       if (amt > leftL) amt = leftL;
       if (amt > cap) amt = cap;
       $('amt').value = amt;
-      log('🔔 检测到真实剩余额度 ' + leftL.toFixed(2) + ' LGNS（第 ' + autoPolls + ' 次 / ' + autoLastMs + 'ms）→ 立即发起 ' + amt + ' LGNS');
+      log('🔔 链上开放且名额未满：预算 ' + budgetL.toFixed(2) + '，真实剩余 ' + leftL.toFixed(2) + ' LGNS（第 ' + autoPolls + ' 次 / ' + autoLastMs + 'ms）→ 立即发起 ' + amt + ' LGNS');
       const result = await burn(true);
       if (result === 'rejected') {
         $('auto').checked = false;
@@ -484,12 +495,12 @@ function cstParts(now) {
 }
 function nextPredictedOpen(now) {
   const p = cstParts(now);
-  const today = Date.UTC(p.y, p.m, p.d, 3, 59, 0, 0); // 最近实测：北京时间约 11:59 开放
+  const today = Date.UTC(p.y, p.m, p.d, 3, 59, 0, 0);
   return now < today ? today : today + 86400000;
 }
 function nextDayCut(now) {
   const p = cstParts(now);
-  const today = Date.UTC(p.y, p.m, p.d, 16, 0, 0, 0); // 北京时间次日 00:00
+  const today = Date.UTC(p.y, p.m, p.d, 16, 0, 0, 0);
   return now < today ? today : today + 86400000;
 }
 function clockText(ms) {
@@ -503,9 +514,8 @@ function friendlyClock(ms) {
 setInterval(() => {
   const now = Date.now();
   const openIn = nextPredictedOpen(now) - now;
-  const cutIn = nextDayCut(now) - now;
   $('openCd').textContent = friendlyClock(openIn);
-  $('dayCutCd').textContent = friendlyClock(cutIn);
+  $('dayCutCd').textContent = friendlyClock(nextDayCut(now) - now);
   $('cd').textContent = clockText(openIn);
 }, 1000);
 
