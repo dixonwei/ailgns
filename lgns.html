@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>LGNS 销毁算力 · 链上卡点修复版</title>
+<title>LGNS 销毁算力 · 精确授权版</title>
 <style>
 :root{--navy:#102040;--navy2:#1e315c;--gold:#c9a64a;--gold2:#f0d98c;--ink:#2a2e38;--gray:#707682;--bg:#f5f7fb;--ok:#1f9d55;--err:#c0392b}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -47,7 +47,7 @@ button:disabled{opacity:.5}
 <body>
 <header>
   <h1>LGNS 销毁算力</h1>
-  <div class="sub">Anubis Chain · PowerLedger · 每纪元 1 次 · 每次 ≤ 500 LGNS<br>修复版 V2026-11-02 · 未到链上开放秒数绝不拉起钱包</div>
+  <div class="sub">Anubis Chain · PowerLedger · 每纪元 1 次 · 每次 ≤ 500 LGNS<br>精确授权版 V2026-11-02 · 仅授权本次销毁数量</div>
 </header>
 
 <div class="wrap">
@@ -118,7 +118,7 @@ button:disabled{opacity:.5}
 
   <div class="card">
     <h2>④ 执行</h2>
-    <button class="btn-ghost" id="btnApprove" style="margin-bottom:10px">授权 LGNS（只需一次，无限额）</button>
+    <button class="btn-ghost" id="btnApprove" style="margin-bottom:10px">授权本次 LGNS</button>
     <button class="btn-primary" id="btnGo">销毁并领取算力</button>
     <div id="log" style="margin-top:10px"></div>
   </div>
@@ -135,7 +135,7 @@ button:disabled{opacity:.5}
     <b>怎么用：</b><br>
     1. 钱包 App 的「浏览器」打开本页；钱包已授权时自动连接，未授权时点「连接钱包」<br>
     2. 确认「360天质押 + 360天债券 + 600天质押 合计 ≥ 20,000 LGNS」且有 LGNS 余额<br>
-    3. 点「授权 LGNS」（只需一次）→ 输入数量；自动抢默认开启<br>
+    3. 先输入本次销毁数量，点「授权本次 LGNS」；授权额度会严格等于本次数量，再开启自动抢<br>
     4. 页面会读取合约的“日切时间 + 每日开放秒数”并自动卡点；<b>未到开放时间不会拉起钱包</b>，到点且今日名额未满才自动发起，最终仍需在钱包里确认交易<br>　（销毁后算力进队列，按每日释放上限、次日起产出）<br><br>
     <b>参与合约：</b>算力账本 0x9E68F61E…68C1b · 资格门槛合约 0xb975FD9b…20a4b
   </div>
@@ -171,8 +171,7 @@ const CFG = {
   selCurrentDay: '0x5c9302c9',
   selDayStart: '0x65b09d2d',
   burnTopic: '0x16b309670cfc6e855d1def7ee55e395827e8a8694f4c701ffe0adbc7b75121cc',
-  explorerApi: 'https://browser.anubispace.org/api',
-  maxUint: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+  explorerApi: 'https://browser.anubispace.org/api'
 };
 const DAY_MS = 86400000;
 const $ = id => document.getElementById(id);
@@ -426,15 +425,45 @@ async function readQuota() {
   } catch(e) { $('qState').textContent = '读取失败：' + String(e.message||e).slice(0,80); }
   finally { quotaBusy = false; }
 }
+function amountRaw9(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n) || n <= 0) return 0n;
+  return BigInt(Math.round(n * 1e9));
+}
+async function readExactAllowance() {
+  if (!account) return 0n;
+  return BigInt(await rpcCall(CFG.lgns, CFG.selAllowance + pad(account) + pad(CFG.ledger)));
+}
+function syncApproveButton() {
+  const amt = Number($('amt').value || 0);
+  $('btnApprove').textContent = amt > 0 ? ('授权本次 ' + amt + ' LGNS') : '先输入本次数量';
+}
 async function approve() {
   if (!account) return connect();
+  const amt = Number($('amt').value || 0);
+  const needed = amountRaw9(amt);
+  if (needed <= 0n) { log('❌ 请先输入本次要销毁的 LGNS 数量'); syncApproveButton(); return; }
   try {
-    $('btnApprove').textContent = '授权中…';
-    const tx = await window.ethereum.request({ method:'eth_sendTransaction', params:[{ from: account, to: CFG.lgns, data: CFG.selApprove + pad(CFG.ledger) + CFG.maxUint.slice(2) }] });
-    log('授权已提交：' + tx.slice(0,18) + '…');
+    $('btnApprove').disabled = true;
+    $('btnApprove').textContent = '授权 ' + amt + ' LGNS 中…';
+    const data = CFG.selApprove + pad(CFG.ledger) + needed.toString(16).padStart(64,'0');
+    const tx = await window.ethereum.request({ method:'eth_sendTransaction', params:[{ from: account, to: CFG.lgns, data }] });
+    log('精确授权已提交：仅授权 ' + amt + ' LGNS · ' + tx.slice(0,18) + '…');
     await waitTx(tx); await refresh();
-    $('btnApprove').textContent = '✅ 授权完成';
-  } catch(e) { log('❌ 授权失败：' + (e.message || e)); $('btnApprove').textContent = '授权 LGNS（只需一次，无限额）'; }
+    const allowance = await readExactAllowance().catch(() => 0n);
+    if (allowance >= needed) {
+      $('btnApprove').textContent = '✅ 已授权本次 ' + amt + ' LGNS';
+      log('✅ 精确授权完成：本次最多可使用 ' + amt + ' LGNS');
+    } else {
+      $('btnApprove').textContent = '授权结果待确认';
+      log('⚠️ 授权交易已提交，但额度尚未同步，请稍后刷新');
+    }
+  } catch(e) {
+    log('❌ 授权失败：' + (e.message || e));
+    syncApproveButton();
+  } finally {
+    $('btnApprove').disabled = false;
+  }
 }
 async function burn(skipSim) {
   if (!account) { connect(); return 'busy'; }
@@ -447,6 +476,13 @@ async function burn(skipSim) {
   }
   const amt = parseFloat($('amt').value || '0');
   if (!(amt > 0)) { log('❌ 请先填销毁数量'); return 'invalid'; }
+  const needed = amountRaw9(amt);
+  const allowance = await readExactAllowance().catch(() => 0n);
+  if (allowance < needed) {
+    log('❌ 精确授权不足：当前 ' + Number(allowance)/1e9 + ' LGNS，本次需要 ' + amt + ' LGNS。请先点击“授权本次 ' + amt + ' LGNS”');
+    syncApproveButton();
+    return 'needs_approval';
+  }
   const data = CFG.selBurn + hexAmt9(amt);
   if (!skipSim) {
     try { await rpcCall(CFG.ledger, data, account); }
@@ -467,7 +503,9 @@ async function burn(skipSim) {
 }
 $('btnConnect').onclick = connect;
 $('btnApprove').onclick = approve;
-$('btnGo').onclick = burn;
+$('btnGo').onclick = () => burn(false);
+$('amt').addEventListener('input', syncApproveButton);
+syncApproveButton();
 document.querySelectorAll('.quick button').forEach(b => b.onclick = async () => {
   const v = b.dataset.v;
   if (v === 'max') {
@@ -496,7 +534,10 @@ async function fireAutoTrade(budgetL, leftL, source) {
   document.title = '🔔 LGNS 已开放，请立即确认';
   log('🔔 已到链上开放时间且名额未满：预算 ' + budgetL.toFixed(2) + '，真实剩余 ' + leftL.toFixed(2) + ' LGNS（' + source + '，第 ' + autoPolls + ' 次 / ' + autoLastMs + 'ms）→ 立即拉起钱包，发起 ' + amt + ' LGNS');
   const result = await burn(true);
-  if (result === 'rejected') {
+  if (result === 'needs_approval') {
+    $('auto').checked = false;
+    $('autoStat').textContent = '精确授权不足，自动抢已暂停：请先输入数量并完成本次授权';
+  } else if (result === 'rejected') {
     $('auto').checked = false;
     $('autoStat').textContent = '你在钱包里取消了确认，自动抢已暂停';
   } else if (result !== 'ok') {
