@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>LGNS 销毁算力 · 参与</title>
+<title>LGNS 销毁算力 · 链上卡点修复版</title>
 <style>
 :root{--navy:#102040;--navy2:#1e315c;--gold:#c9a64a;--gold2:#f0d98c;--ink:#2a2e38;--gray:#707682;--bg:#f5f7fb;--ok:#1f9d55;--err:#c0392b}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -47,7 +47,7 @@ button:disabled{opacity:.5}
 <body>
 <header>
   <h1>LGNS 销毁算力</h1>
-  <div class="sub">Anubis Chain · PowerLedger · 每纪元 1 次 · 每次 ≤ 500 LGNS</div>
+  <div class="sub">Anubis Chain · PowerLedger · 每纪元 1 次 · 每次 ≤ 500 LGNS<br>修复版 V2026-11-02 · 未到链上开放秒数绝不拉起钱包</div>
 </header>
 
 <div class="wrap">
@@ -86,13 +86,14 @@ button:disabled{opacity:.5}
     <div class="row"><span class="k">今日参与钱包</span><span class="v" id="qWallets">—</span></div>
     <div class="row"><span class="k">首笔 → 末笔</span><span class="v" id="qSoldOut">—</span></div>
     <div id="qState" style="font-size:12px;color:#707682;margin-top:6px">正在读取…</div>
-    <div class="row"><span class="k">检测模式</span><span class="v">打开页面即全天候检测</span></div>
-    <div class="row"><span class="k">触发条件</span><span class="v">开放信号 + 真实名额未满</span></div>
-    <div class="row"><span class="k">预测参考（不参与抢购）</span><span class="v">每日约 11:59—12:00</span></div>
-    <div class="row"><span class="k">距下次预测参考</span><span class="v" id="openCd" style="font-variant-numeric:tabular-nums">—</span></div>
+    <div class="row"><span class="k">检测模式</span><span class="v">打开页面后等待链上开放</span></div>
+    <div class="row"><span class="k">自动拉起条件</span><span class="v">已到开放秒数 + 今日未抢完</span></div>
+    <div class="row"><span class="k">链上开放规则</span><span class="v" id="chainOpenRule">读取中</span></div>
+    <div class="row"><span class="k">今日链上开放</span><span class="v" id="chainOpenAt">读取中</span></div>
+    <div class="row"><span class="k">距下一次开放</span><span class="v" id="openCd" style="font-variant-numeric:tabular-nums">—</span></div>
     <div class="row"><span class="k">距下一日切</span><span class="v" id="dayCutCd" style="font-variant-numeric:tabular-nums">—</span></div>
     <div style="text-align:center;margin-top:10px;font-size:26px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums" id="cd">--:--:--</div>
-    <div style="text-align:center;font-size:11.5px;color:#9aa3b2">预测时间只做展示，不参与判断；链上条件满足即触发</div>
+    <div style="text-align:center;font-size:11.5px;color:#9aa3b2">以合约返回的“日切时间 + 每日开放秒数”为准；倒计时只做展示</div>
   </div>
 
   <div class="card">
@@ -108,10 +109,10 @@ button:disabled{opacity:.5}
       <button data-v="max">最多</button>
     </div>
     <div class="sw">
-      <span>额度开放时自动检测并拉起钱包确认（每 150ms 检测）</span>
+      <span>链上开放后自动拉起钱包确认（提前绝不调用）</span>
       <input type="checkbox" id="auto" checked>
     </div>
-    <div id="autoStat" style="font-size:11.5px;color:#9aa3b2;margin-top:4px">自动检测未开始</div><div class="warn" style="margin-top:8px">本页不能替你签名或跳过钱包确认。请保持页面前台、屏幕常亮；额度曾在 5 秒内被 400 个钱包抢完。</div>
+    <div id="autoStat" style="font-size:11.5px;color:#9aa3b2;margin-top:4px">自动检测未开始</div><div class="warn" style="margin-top:8px">本页不能替你签名或跳过钱包确认。请保持页面前台、屏幕常亮；今日额度曾在 <b>2 秒内被 400 个钱包抢完</b>，真正开放前本页不会调用钱包。</div>
     <div style="font-size:12px;color:#707682;margin-top:4px">1 LGNS = 1 DAI 固定估值 × 2.0 倍 = <b>2 DAI 算力</b>；单笔上限以链上 maximumLgns 为准</div>
   </div>
 
@@ -135,7 +136,7 @@ button:disabled{opacity:.5}
     1. 钱包 App 的「浏览器」打开本页；钱包已授权时自动连接，未授权时点「连接钱包」<br>
     2. 确认「360天质押 + 360天债券 + 600天质押 合计 ≥ 20,000 LGNS」且有 LGNS 余额<br>
     3. 点「授权 LGNS」（只需一次）→ 输入数量；自动抢默认开启<br>
-    4. 页面打开即按链上额度实时检测，<b>不等到某个固定时间</b>；额度一旦大于 0 就立即发起，最终仍需在钱包里确认交易<br>　（销毁后算力进队列，按每日释放上限、次日起产出）<br><br>
+    4. 页面会读取合约的“日切时间 + 每日开放秒数”并自动卡点；<b>未到开放时间不会拉起钱包</b>，到点且今日名额未满才自动发起，最终仍需在钱包里确认交易<br>　（销毁后算力进队列，按每日释放上限、次日起产出）<br><br>
     <b>参与合约：</b>算力账本 0x9E68F61E…68C1b · 资格门槛合约 0xb975FD9b…20a4b
   </div>
 </div>
@@ -144,6 +145,7 @@ button:disabled{opacity:.5}
 const CFG = {
   chainId: 6714, chainIdHex: '0x1a3a',
   rpc: 'https://rpc.anubispace.org',
+  rpcFallback: 'https://rpc2.anubispace.org',
   explorer: 'https://browser.anubispace.org',
   lgns: '0x4D1D808a081FdAc440703b3765FC61f8028C06B8',
   ledger: '0x9E68F61E2615cc1D2C4a2D0026bFc1EBFdf68C1b',
@@ -161,6 +163,7 @@ const CFG = {
   selMaxLgns: '0x7300b78e',
   selBurnedToday: '0xcb9ebaf2',
   selDailyMax: '0x020bb577',
+  selDailyOpensAfter: '0xa4b5c200',
   selMinStake: '0xec5ffac2',
   selStakeOf: '0x42623360',
   selBurnEpoch: '0x99e02c2d',
@@ -171,6 +174,7 @@ const CFG = {
   explorerApi: 'https://browser.anubispace.org/api',
   maxUint: '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
 };
+const DAY_MS = 86400000;
 const $ = id => document.getElementById(id);
 let account = null;
 const log = m => { const d = new Date().toLocaleTimeString('zh-CN'); $('log').innerHTML = '[' + d + '] ' + m + '<br>' + $('log').innerHTML; };
@@ -323,8 +327,33 @@ async function refresh() {
   } catch(e) {}
   await readQuota();
 }
-let lastAlert = 0;
+let quotaBusy = false;
+
+function chainAutoDecision(now, budgetL, leftL, openAt, endAt) {
+  const open = Number(openAt || 0);
+  const end = Number(endAt || 0);
+  const known = open > 0 && end > open;
+  if (!known) return { known:false, beforeOpen:false, expired:false, canFire:false, reason:'未校准链上开放时间' };
+  if (now < open) return { known:true, beforeOpen:true, expired:false, canFire:false, reason:'还没到链上开放时间' };
+  if (now >= end) return { known:true, beforeOpen:false, expired:true, canFire:false, reason:'链上开放窗口数据已过期' };
+  if (!(leftL > 0)) return { known:true, beforeOpen:false, expired:false, canFire:false, reason:'今日真实名额已抢完' };
+  if (!(budgetL > 0)) return { known:true, beforeOpen:false, expired:false, canFire:false, reason:'等待开放预算同步' };
+  return { known:true, beforeOpen:false, expired:false, canFire:true, reason:'已到开放时间且名额未满' };
+}
+
+function currentChainDecision(now) {
+  return chainAutoDecision(
+    now == null ? Date.now() : now,
+    Number(window.__budgetL || 0),
+    Number(window.__left || 0),
+    Number(window.__chainOpenAt || 0),
+    Number(window.__chainDayEndAt || 0)
+  );
+}
+
 async function readQuota() {
+  if (quotaBusy) return;
+  quotaBusy = true;
   try {
     const cap = BigInt(await rpcCall(CFG.ledger, CFG.selCap));
     const q = BigInt(await rpcCall(CFG.ledger, CFG.selQueued));
@@ -334,8 +363,12 @@ async function readQuota() {
     const budgetL = Number(budget) / 1e18;
     const burnedToday = BigInt(await rpcCall(CFG.gate, CFG.selBurnedToday));
     const dailyMax = BigInt(await rpcCall(CFG.gate, CFG.selDailyMax));
+    const dailyOpensAfter = Number(BigInt(await rpcCall(CFG.gate, CFG.selDailyOpensAfter)));
     const epNow = BigInt(await rpcCall(CFG.clock, CFG.selEpoch));
     const chainDay = BigInt(await rpcCall(CFG.clock, CFG.selCurrentDay));
+    const dayStartTs = Number(BigInt(await rpcCall(CFG.clock, CFG.selDayStart + pad('0x' + chainDay.toString(16)))));
+    const chainOpenAt = (dayStartTs + dailyOpensAfter) * 1000;
+    const chainDayEndAt = (dayStartTs + 86400) * 1000;
     const rt = Number(rate) / 1e18;
     const burnedL = Number(burnedToday) / 1e9;
     const dailyMaxL = Number(dailyMax) / 1e9;
@@ -344,8 +377,17 @@ async function readQuota() {
     window.__cap = toN(cap) / rt;
     window.__max = Number(maxL) / 1e9;
     window.__rt = rt;
+    window.__budgetL = budgetL;
     window.__dailyMaxRaw = dailyMax;
     window.__burnedTodayRaw = burnedToday;
+    window.__chainDay = chainDay.toString();
+    window.__chainOpenAt = chainOpenAt;
+    window.__chainDayEndAt = chainDayEndAt;
+    window.__chainWindowSyncedAt = Date.now();
+    const decision = chainAutoDecision(Date.now(), budgetL, remainingTodayL, chainOpenAt, chainDayEndAt);
+    const openTime = new Date(chainOpenAt).toLocaleTimeString('zh-CN',{hour12:false,timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    $('chainOpenRule').textContent = '链上日切 + ' + dailyOpensAfter.toLocaleString('en-US') + ' 秒';
+    $('chainOpenAt').textContent = openTime + (decision.beforeOpen ? '（等待）' : '（今日已到）');
     $('qCap').textContent = dailyMax > 0n ? dailyMaxL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS' : '0（未设置）';
     $('qUsed').textContent = burnedL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS';
     $('qLeft').textContent = remainingTodayL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS';
@@ -360,26 +402,29 @@ async function readQuota() {
     const bd = $('badge');
     const notOpen = (maxL === 0n && cap === 0n && dailyMax === 0n);
     const activityReady = todayActivity.ready && todayActivity.day === chainDay.toString();
-    window.__quotaStatus = { budgetL, remainingLgns:remainingTodayL, notOpen, epoch:chainDay.toString() };
+    window.__quotaStatus = { budgetL, remainingLgns:remainingTodayL, notOpen, chainOpenAt, chainDayEndAt, epoch:chainDay.toString(), decision };
     if (notOpen) {
       bd.className = 'badge b-wait'; bd.textContent = '尚 未 開 放';
-      $('qState').textContent = '⏳ 合约尚未设置今日上限；自动检测会继续运行。';
-    } else if (remainingTodayL > 0 && budgetL > 0) {
+      $('qState').textContent = '⏳ 合约尚未设置今日上限；页面会继续按链上时间检测。';
+    } else if (decision.beforeOpen) {
+      bd.className = 'badge b-wait'; bd.textContent = '等 待 链 上 开 放';
+      $('qState').innerHTML = '⏳ 今日链上开放时间 <b>' + openTime + '</b>，还剩 <b>' + friendlyClock(chainOpenAt - Date.now()) + '</b>。现在只有开放预算，<b>不代表已经能买</b>；本工具不会提前调用钱包。';
+    } else if (decision.canFire) {
       bd.className = 'badge b-ok'; bd.textContent = '可 销 毁';
       $('qState').innerHTML = '🟢 <b>链上已开放，真实名额未满！</b>今日已销毁 ' + burnedL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' / ' + dailyMaxL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS，剩余 ' + remainingTodayL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS。检测到后会立即拉起钱包确认。';
-      if (Date.now() - lastAlert > 60000) { lastAlert = Date.now(); beep(); document.title = '🟢 LGNS 可销毁'; }
     } else if (remainingTodayL > 0) {
-      bd.className = 'badge b-wait'; bd.textContent = '等 待 开 放';
-      $('qState').textContent = '今日真实名额还有 ' + remainingTodayL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS，但链上开放预算尚未出现。本工具会全天候检测，不依赖预测时间。';
+      bd.className = 'badge b-wait'; bd.textContent = '预 算 同 步 中';
+      $('qState').textContent = '今日真实名额还有 ' + remainingTodayL.toLocaleString('en-US',{maximumFractionDigits:2}) + ' LGNS，正在等待开放预算同步；工具会持续检测。';
     } else if (activityReady && todayActivity.count > 0) {
       bd.className = 'badge b-err'; bd.textContent = '今 日 已 满';
       $('qState').textContent = '今日 200,000 LGNS 销毁额度已满：共 ' + todayActivity.wallets + ' 个钱包参与。Lens 辅助预算即使仍显示大于 0，也不能再看它判断名额。';
     } else {
-      bd.className = 'badge b-wait'; bd.textContent = '等 待 额 度';
-      $('qState').textContent = '今天链上暂时还没有销毁记录。自动检测会以今日真实已销毁数量为准。';
+      bd.className = 'badge b-wait'; bd.textContent = '今 日 已 抢 完';
+      $('qState').textContent = '今日链上剩余名额为 0。页面会继续校对链上状态，下一日切后再等待新的开放时间。';
     }
     loadTodayActivity();
   } catch(e) { $('qState').textContent = '读取失败：' + String(e.message||e).slice(0,80); }
+  finally { quotaBusy = false; }
 }
 async function approve() {
   if (!account) return connect();
@@ -393,6 +438,13 @@ async function approve() {
 }
 async function burn(skipSim) {
   if (!account) { connect(); return 'busy'; }
+  const gateNow = currentChainDecision(Date.now());
+  if (!gateNow.canFire) {
+    if (!gateNow.known || gateNow.expired) log('⏳ 正在校准链上开放时间，本次不调用钱包');
+    else if (gateNow.beforeOpen) log('⏳ 还没到链上开放时间，本次不调用钱包');
+    else log('⏳ ' + gateNow.reason + '，本次不调用钱包');
+    return 'not_open';
+  }
   const amt = parseFloat($('amt').value || '0');
   if (!(amt > 0)) { log('❌ 请先填销毁数量'); return 'invalid'; }
   const data = CFG.selBurn + hexAmt9(amt);
@@ -428,8 +480,65 @@ document.querySelectorAll('.quick button').forEach(b => b.onclick = async () => 
 });
 readQuota();
 setInterval(readQuota, 10000);
-/* 自动抢：打开页面即检测链上额度，不按固定时间；额度 > 0 立即发交易 */
+/* 自动抢：只在“链上开放秒数已到 + 今日未抢完”时调用钱包。 */
 var autoBusy = false, autoPolls = 0, autoLastMs = 0, autoFired = false, autoAttempts = 0;
+
+async function fireAutoTrade(budgetL, leftL, source) {
+  autoFired = true;
+  autoAttempts++;
+  let amt = parseFloat($('amt').value || '0');
+  const cap = window.__max > 0 ? window.__max : 500;
+  if (!(amt > 0)) amt = Math.min(cap, leftL);
+  if (amt > leftL) amt = leftL;
+  if (amt > cap) amt = cap;
+  $('amt').value = amt;
+  beep();
+  document.title = '🔔 LGNS 已开放，请立即确认';
+  log('🔔 已到链上开放时间且名额未满：预算 ' + budgetL.toFixed(2) + '，真实剩余 ' + leftL.toFixed(2) + ' LGNS（' + source + '，第 ' + autoPolls + ' 次 / ' + autoLastMs + 'ms）→ 立即拉起钱包，发起 ' + amt + ' LGNS');
+  const result = await burn(true);
+  if (result === 'rejected') {
+    $('auto').checked = false;
+    $('autoStat').textContent = '你在钱包里取消了确认，自动抢已暂停';
+  } else if (result !== 'ok') {
+    if (autoAttempts < 3) {
+      setTimeout(() => { autoFired = false; }, 700);
+      $('autoStat').textContent = '本次钱包未完成，700ms 后会在名额未满时重试（' + autoAttempts + '/3）';
+    } else {
+      $('autoStat').textContent = '已连续尝试 3 次仍未完成；请检查钱包弹窗、资格和网络';
+    }
+  }
+  return result;
+}
+
+var preciseOpenArmed = false;
+function armPreciseOpen(){
+  if (preciseOpenArmed) return;
+  preciseOpenArmed = true;
+  async function tick(){
+    if (!$('auto').checked || !window.__ready || window.__participated) { preciseOpenArmed = false; return; }
+    const now = Date.now();
+    const openAt = Number(window.__chainOpenAt || 0);
+    if (!openAt) { preciseOpenArmed = false; setTimeout(autoLoop, 0); return; }
+    if (now < openAt) { requestAnimationFrame(tick); return; }
+    if (autoBusy) { requestAnimationFrame(tick); return; }
+    preciseOpenArmed = false;
+    const decision = currentChainDecision(now);
+    if (now <= openAt + 1500 && decision.canFire && !autoFired) {
+      autoBusy = true;
+      try {
+        $('autoStat').textContent = '链上开放帧已到：立即拉起钱包，不等待 RPC';
+        await fireAutoTrade(Number(window.__budgetL || 0), Number(window.__left || 0), '帧级卡点路径');
+      } finally {
+        autoBusy = false;
+        setTimeout(autoLoop, 150);
+      }
+    } else {
+      setTimeout(autoLoop, 0);
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
 async function autoLoop(){
   if (!$('auto').checked) {
     $('autoStat').textContent = '自动抢已关闭';
@@ -445,7 +554,43 @@ async function autoLoop(){
   }
   if (autoBusy) { setTimeout(autoLoop, 100); return; }
   autoBusy = true;
+  let nextDelay = 150;
   try {
+    const before = Date.now();
+    const windowState = currentChainDecision(before);
+
+    if (!windowState.known || windowState.expired) {
+      autoFired = false; autoAttempts = 0;
+      $('autoStat').textContent = '正在校准链上开放时间；校准完成前不会调用钱包';
+      if (!quotaBusy) readQuota();
+      nextDelay = 350;
+      return;
+    }
+
+    if (windowState.beforeOpen) {
+      autoFired = false; autoAttempts = 0;
+      const waitMs = Number(window.__chainOpenAt) - before;
+      const openText = new Date(Number(window.__chainOpenAt)).toLocaleTimeString('zh-CN',{hour12:false,timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      $('autoStat').textContent = '已校准：链上 ' + openText + ' 开放 · 还剩 ' + friendlyClock(waitMs) + ' · 现在不会调用钱包';
+      if (waitMs > 2500) {
+        nextDelay = Math.max(10, Math.min(60000, waitMs - 2000));
+      } else {
+        armPreciseOpen();
+        nextDelay = 2200;
+      }
+      return;
+    }
+
+    /* 秒杀快路径：开放前已缓存“预算>0、名额未满”，到点不再等 RPC，直接拉起钱包。 */
+    const cacheAge = before - Number(window.__chainWindowSyncedAt || 0);
+    const fastUntil = Number(window.__chainOpenAt) + 1500;
+    if (before < fastUntil && cacheAge >= 0 && cacheAge <= 30000 && windowState.canFire && !autoFired) {
+      $('autoStat').textContent = '已到开放时间：使用 30 秒内链上缓存，立即拉起钱包，不等待 RPC';
+      await fireAutoTrade(Number(window.__budgetL || 0), Number(window.__left || 0), '秒杀快路径');
+      nextDelay = 150;
+      return;
+    }
+
     const t0 = Date.now();
     const [budget, burned] = await Promise.all([
       rpcCall(CFG.lens, CFG.selBudget),
@@ -456,39 +601,29 @@ async function autoLoop(){
     autoPolls++;
     const budgetL = Number(BigInt(budget)) / 1e18;
     const leftL = Math.max(0, (Number(dailyMax) - Number(burned)) / 1e9);
-    const quotaOpen = budgetL > 0 && leftL > 0;
+    const decision = chainAutoDecision(Date.now(), budgetL, leftL, Number(window.__chainOpenAt), Number(window.__chainDayEndAt));
     window.__left = leftL;
     window.__budgetL = budgetL;
     window.__burnedTodayRaw = burned;
     window.__dailyMaxRaw = dailyMax;
-    $('autoStat').textContent = '全天候检测中：已查 ' + autoPolls + ' 次 · ' + autoLastMs + 'ms · 开放预算 ' + budgetL.toFixed(2) + ' · 真实剩余 ' + leftL.toFixed(2) + ' LGNS';
-    if (!quotaOpen) {
+    $('autoStat').textContent = '链上卡点检测：已查 ' + autoPolls + ' 次 · ' + autoLastMs + 'ms · 开放预算 ' + budgetL.toFixed(2) + ' · 真实剩余 ' + leftL.toFixed(2) + ' LGNS';
+
+    if (!decision.canFire) {
       autoFired = false; autoAttempts = 0;
+      $('autoStat').textContent = '等待中：' + decision.reason + ' · 已查 ' + autoPolls + ' 次 · ' + autoLastMs + 'ms · 真实剩余 ' + leftL.toFixed(2) + ' LGNS';
+      nextDelay = decision.beforeOpen ? 100 : (decision.expired ? 500 : 1000);
     } else if (!autoFired) {
-      autoFired = true; autoAttempts++;
-      let amt = parseFloat($('amt').value || '0');
-      const cap = window.__max > 0 ? window.__max : 500;
-      if (!(amt > 0)) amt = Math.min(cap, leftL);
-      if (amt > leftL) amt = leftL;
-      if (amt > cap) amt = cap;
-      $('amt').value = amt;
-      log('🔔 链上开放且名额未满：预算 ' + budgetL.toFixed(2) + '，真实剩余 ' + leftL.toFixed(2) + ' LGNS（第 ' + autoPolls + ' 次 / ' + autoLastMs + 'ms）→ 立即发起 ' + amt + ' LGNS');
-      const result = await burn(true);
-      if (result === 'rejected') {
-        $('auto').checked = false;
-        $('autoStat').textContent = '你在钱包里取消了确认，自动抢已暂停';
-      } else if (result !== 'ok' && autoAttempts < 3) {
-        setTimeout(() => { autoFired = false; }, 700);
-      }
+      await fireAutoTrade(budgetL, leftL, 'RPC 校准路径');
     }
   } catch(e) {
     $('autoStat').textContent = '额度检测异常，正在自动重试';
+    nextDelay = 350;
+  } finally {
+    autoBusy = false;
+    setTimeout(autoLoop, nextDelay);
   }
-  autoBusy = false;
-  setTimeout(autoLoop, 150);
 }
 autoLoop();
-
 function cstParts(now) {
   const d = new Date(now + 8 * 3600000);
   return { y:d.getUTCFullYear(), m:d.getUTCMonth(), d:d.getUTCDate() };
@@ -496,7 +631,14 @@ function cstParts(now) {
 function nextPredictedOpen(now) {
   const p = cstParts(now);
   const today = Date.UTC(p.y, p.m, p.d, 3, 59, 0, 0);
-  return now < today ? today : today + 86400000;
+  return now < today ? today : today + DAY_MS;
+}
+function nextChainOpen(now) {
+  const known = Number(window.__chainOpenAt || 0);
+  if (!known) return nextPredictedOpen(now);
+  let next = known;
+  while (next <= now) next += DAY_MS;
+  return next;
 }
 function nextDayCut(now) {
   const p = cstParts(now);
@@ -513,11 +655,11 @@ function friendlyClock(ms) {
 }
 setInterval(() => {
   const now = Date.now();
-  const openIn = nextPredictedOpen(now) - now;
+  const openIn = nextChainOpen(now) - now;
   $('openCd').textContent = friendlyClock(openIn);
   $('dayCutCd').textContent = friendlyClock(nextDayCut(now) - now);
   $('cd').textContent = clockText(openIn);
-}, 1000);
+}, 250);
 
 if (!window.ethereum) $('envWarn').style.display = 'block';
 if (window.ethereum) {
