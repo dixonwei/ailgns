@@ -1,16 +1,16 @@
 {
-  "updatedAt": "2026-11-08T05:57:55.716Z",
-  "block": 18582595,
+  "updatedAt": "2026-11-08T13:20:27.183Z",
+  "block": 18609138,
   "factory": "0xB39d8759d59592363395E4c66a3d4E4ACc9bc09D",
   "event": "BurnNFTMinted",
   "topic0": "0xd67ccdfa9242c203ed59f133bb981c49f98478f702b1ea2fb54f54afe4966fb4",
-  "nft": 6224,
-  "lgnsBurned": 4590363.1769,
+  "nft": 6329,
+  "lgnsBurned": 4615960.9806,
   "ailgnsBurned": 15.121233,
-  "burnValueDai": 4600323.76,
-  "capacityDai": 9210608.1,
+  "burnValueDai": 4625921.56,
+  "capacityDai": 9261803.71,
   "modes": {
-    "1": 6184,
+    "1": 6289,
     "3": 40
   },
   "daily": [
@@ -196,7 +196,7 @@
     },
     {
       "date": "2026-11-08",
-      "lgns": 44495.4002,
+      "lgns": 70093.2038,
       "ailgns": 0
     }
   ],
@@ -3619,6 +3619,46 @@
     {
       "time": "2026-11-08T13",
       "lgns": 1723.4728,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-08T14",
+      "lgns": 8796.0883,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-08T15",
+      "lgns": 2707,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-08T16",
+      "lgns": 6892.7888,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-08T17",
+      "lgns": 1050,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-08T18",
+      "lgns": 820,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-08T19",
+      "lgns": 1310,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-08T20",
+      "lgns": 3108.9266,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-08T21",
+      "lgns": 913,
       "ailgns": 0
     }
   ],
