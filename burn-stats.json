@@ -1,17 +1,17 @@
 {
-  "updatedAt": "2026-11-25T21:41:00.207Z",
-  "block": 20079439,
+  "updatedAt": "2026-11-26T08:14:56.088Z",
+  "block": 20116916,
   "factory": "0xB39d8759d59592363395E4c66a3d4E4ACc9bc09D",
   "event": "BurnNFTMinted",
   "topic0": "0xd67ccdfa9242c203ed59f133bb981c49f98478f702b1ea2fb54f54afe4966fb4",
-  "nft": 10967,
-  "lgnsBurned": 6332288.2793,
-  "ailgnsBurned": 15.701233,
-  "burnValueDai": 6342748.67,
-  "capacityDai": 12695957.72,
+  "nft": 11172,
+  "lgnsBurned": 6414520.2048,
+  "ailgnsBurned": 16.311233,
+  "burnValueDai": 6425516.03,
+  "capacityDai": 12862027.9,
   "modes": {
-    "1": 10923,
-    "3": 44
+    "1": 11127,
+    "3": 45
   },
   "daily": [
     {
@@ -286,8 +286,8 @@
     },
     {
       "date": "2026-11-26",
-      "lgns": 7398.5852,
-      "ailgns": 0
+      "lgns": 89630.5107,
+      "ailgns": 0.61
     }
   ],
   "hourly": [
@@ -5774,6 +5774,66 @@
     {
       "time": "2026-11-26T04",
       "lgns": 400,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T05",
+      "lgns": 3100,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T06",
+      "lgns": 1400.0094,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T07",
+      "lgns": 9213.4237,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T08",
+      "lgns": 3150,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T09",
+      "lgns": 3500.5301,
+      "ailgns": 0.61
+    },
+    {
+      "time": "2026-11-26T10",
+      "lgns": 14675.3253,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T11",
+      "lgns": 21800,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T12",
+      "lgns": 7800.0001,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T13",
+      "lgns": 1900,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T14",
+      "lgns": 9058.7759,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T15",
+      "lgns": 6433.8611,
+      "ailgns": 0
+    },
+    {
+      "time": "2026-11-26T16",
+      "lgns": 200,
       "ailgns": 0
     }
   ],
